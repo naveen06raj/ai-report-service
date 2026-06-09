@@ -21,18 +21,14 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------
 
 GCP_PROJECT_ID = os.getenv(
-    "GCP_PROJECT_ID"
+    "GCP_PROJECT_ID",
+    "announcement-ai-project"
 )
 
 GOOGLE_LOCATION = os.getenv(
     "GOOGLE_LOCATION",
     "us-central1"
 )
-
-if not GCP_PROJECT_ID:
-    raise ValueError(
-        "GCP_PROJECT_ID is not configured"
-    )
 
 # --------------------------------------------------
 # Chat Model Factory
