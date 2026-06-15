@@ -71,7 +71,7 @@ class PromptBuilder:
             )
 
     # --------------------------------------------------
-    # Summary Prompt
+    # Feedback Summary Prompt
     # --------------------------------------------------
 
     def build_feedback_summary_prompt(
@@ -89,7 +89,25 @@ class PromptBuilder:
         )
 
     # --------------------------------------------------
-    # Chat Prompt
+    # Facility Summary Prompt
+    # --------------------------------------------------
+
+    def build_facility_summary_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/summary/facility_booking.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+    # --------------------------------------------------
+    # Feedback Chat Prompt
     # --------------------------------------------------
 
     def build_feedback_chat_prompt(
@@ -109,9 +127,31 @@ class PromptBuilder:
                     question
             }
         )
+    
+        # --------------------------------------------------
+    # Facility Chat Prompt
+    # --------------------------------------------------
+
+    def build_facility_chat_prompt(
+        self,
+        report_data: dict,
+        question: str
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/chat/facility_chat.txt",
+            placeholders={
+                "report_data":
+                    report_data,
+
+                "question":
+                    question
+            }
+        )
 
     # --------------------------------------------------
-    # Anomaly Prompt
+    # Feedback Anomaly Prompt
     # --------------------------------------------------
 
     def build_feedback_anomaly_prompt(
@@ -129,7 +169,26 @@ class PromptBuilder:
         )
 
     # --------------------------------------------------
-    # Management Report Prompt
+    # Facility Anomaly Prompt
+    # --------------------------------------------------
+
+    def build_facility_anomaly_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/anomaly/facility_anomaly.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+
+    # --------------------------------------------------
+    # Feedback Management Report Prompt
     # --------------------------------------------------
 
     def build_feedback_management_report_prompt(
@@ -146,6 +205,23 @@ class PromptBuilder:
             }
         )
 
+    # --------------------------------------------------
+    # Facility Management Report Prompt
+    # --------------------------------------------------
+
+    def build_facility_management_report_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/management_report/facility_management_report.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
     # --------------------------------------------------
     # Router Prompt
     # --------------------------------------------------

@@ -14,6 +14,14 @@ from services.management_report.feedback_management_report_service import (
     FeedbackManagementReportService
 )
 
+from services.analytics.facility_booking_analyzer import (
+    FacilityBookingAnalyzer
+)
+
+from services.management_report.facility_management_report_service import (
+    FacilityManagementReportService
+)
+
 # --------------------------------------------------
 # Backend Report API
 # --------------------------------------------------
@@ -108,6 +116,106 @@ async def resident_feedback_management_report(
 
         report = (
             FeedbackManagementReportService()
+            .generate(
+                analytics
+            )
+        )
+
+        return report
+
+    except HTTPException:
+        raise
+
+    except requests.exceptions.RequestException as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backend API Error: {str(ex)}"
+        )
+
+    except Exception as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+@router.post("/facility-booking")
+async def facility_booking_management_report(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        property_id = request.get(
+            "property"
+        )
+
+        period = request.get(
+            "period"
+        )
+
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property is required"
+            )
+
+        if not period:
+
+            raise HTTPException(
+                status_code=400,
+                detail="period is required"
+            )
+
+        # -----------------------------------------
+        # Call Backend Report API
+        # -----------------------------------------
+
+        backend_response = requests.post(
+            BACKEND_REPORT_URL,
+            headers={
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            json={
+                "property": property_id,
+                "period": period
+            },
+            timeout=60
+        )
+
+        backend_response.raise_for_status()
+
+        report_data = (
+            backend_response.json()
+        )
+
+        # -----------------------------------------
+        # Analytics Layer
+        # -----------------------------------------
+
+        analytics = (
+            FacilityBookingAnalyzer()
+            .analyze(report_data)
+        )
+
+        # -----------------------------------------
+        # Management Report
+        # -----------------------------------------
+
+        report = (
+            FacilityManagementReportService()
             .generate(
                 analytics
             )
