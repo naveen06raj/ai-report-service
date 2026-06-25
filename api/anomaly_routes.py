@@ -22,6 +22,14 @@ from services.anomaly.facility_anomaly_service import (
     FacilityAnomalyService
 )
 
+from services.analytics.visitor_management_analyzer import (
+    VisitorManagementAnalyzer
+)
+
+from services.anomaly.visitor_management_anomaly_service import (
+    VisitorManagementAnomalyService
+)
+
 # --------------------------------------------------
 # Backend Report API
 # --------------------------------------------------
@@ -221,6 +229,108 @@ async def facility_booking_anomaly(
 
         anomalies = (
             FacilityAnomalyService()
+            .detect(
+                analytics
+            )
+        )
+
+        return anomalies
+
+    except HTTPException:
+        raise
+
+    except requests.exceptions.RequestException as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backend API Error: {str(ex)}"
+        )
+
+    except Exception as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+@router.post("/visitor-management")
+async def visitor_management_anomaly(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        property_id = request.get(
+            "property"
+        )
+
+        period = request.get(
+            "period"
+        )
+
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property is required"
+            )
+
+        if not period:
+
+            raise HTTPException(
+                status_code=400,
+                detail="period is required"
+            )
+
+        # --------------------------------------------------
+        # Call Report API
+        # --------------------------------------------------
+
+        backend_response = requests.post(
+            BACKEND_REPORT_URL,
+            headers={
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            json={
+                "property": property_id,
+                "period": period
+            },
+            timeout=60
+        )
+
+        backend_response.raise_for_status()
+
+        report_data = (
+            backend_response.json()
+        )
+
+        # --------------------------------------------------
+        # Analytics
+        # --------------------------------------------------
+
+        analytics = (
+            VisitorManagementAnalyzer()
+            .analyze(
+                report_data
+            )
+        )
+
+        # --------------------------------------------------
+        # AI Anomaly Detection
+        # --------------------------------------------------
+
+        anomalies = (
+            VisitorManagementAnomalyService()
             .detect(
                 analytics
             )

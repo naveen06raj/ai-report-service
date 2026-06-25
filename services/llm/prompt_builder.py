@@ -106,6 +106,31 @@ class PromptBuilder:
             }
         )
 
+# --------------------------------------------------
+# Visitor Summary Prompt
+# --------------------------------------------------
+
+# --------------------------------------------------
+# Visitor Summary Prompt
+# --------------------------------------------------
+
+    # --------------------------------------------------
+    # Visitor Summary Prompt
+    # --------------------------------------------------
+
+    def build_visitor_summary_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/summary/visitor_management.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
     # --------------------------------------------------
     # Feedback Chat Prompt
     # --------------------------------------------------
@@ -141,6 +166,28 @@ class PromptBuilder:
         return self.build_prompt(
             prompt_file=
             "prompts/chat/facility_chat.txt",
+            placeholders={
+                "report_data":
+                    report_data,
+
+                "question":
+                    question
+            }
+        )
+
+    # --------------------------------------------------
+    # Visitor Chat Prompt
+    # --------------------------------------------------
+
+    def build_visitor_chat_prompt(
+        self,
+        report_data: dict,
+        question: str
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/chat/visitor_management_chat.txt",
             placeholders={
                 "report_data":
                     report_data,
@@ -188,6 +235,24 @@ class PromptBuilder:
 
 
     # --------------------------------------------------
+    # Visitor Anomaly Prompt
+    # --------------------------------------------------
+
+    def build_visitor_anomaly_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/anomaly/visitor_management_anomaly.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+    # --------------------------------------------------
     # Feedback Management Report Prompt
     # --------------------------------------------------
 
@@ -217,6 +282,24 @@ class PromptBuilder:
         return self.build_prompt(
             prompt_file=
             "prompts/management_report/facility_management_report.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+    # --------------------------------------------------
+    # Visitor Management Report Prompt
+    # --------------------------------------------------
+
+    def build_visitor_management_report_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/management_report/visitor_management_report.txt",
             placeholders={
                 "analytics_data":
                     analytics_data

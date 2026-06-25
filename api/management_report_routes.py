@@ -22,6 +22,14 @@ from services.management_report.facility_management_report_service import (
     FacilityManagementReportService
 )
 
+from services.analytics.visitor_management_analyzer import (
+    VisitorManagementAnalyzer
+)
+
+from services.management_report.visitor_management_report_service import (
+    VisitorManagementReportService
+)
+
 # --------------------------------------------------
 # Backend Report API
 # --------------------------------------------------
@@ -216,6 +224,106 @@ async def facility_booking_management_report(
 
         report = (
             FacilityManagementReportService()
+            .generate(
+                analytics
+            )
+        )
+
+        return report
+
+    except HTTPException:
+        raise
+
+    except requests.exceptions.RequestException as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backend API Error: {str(ex)}"
+        )
+
+    except Exception as ex:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+@router.post("/visitor-management")
+async def visitor_management_report(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        property_id = request.get(
+            "property"
+        )
+
+        period = request.get(
+            "period"
+        )
+
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property is required"
+            )
+
+        if not period:
+
+            raise HTTPException(
+                status_code=400,
+                detail="period is required"
+            )
+
+        # -----------------------------------------
+        # Call Backend Report API
+        # -----------------------------------------
+
+        backend_response = requests.post(
+            BACKEND_REPORT_URL,
+            headers={
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            json={
+                "property": property_id,
+                "period": period
+            },
+            timeout=60
+        )
+
+        backend_response.raise_for_status()
+
+        report_data = (
+            backend_response.json()
+        )
+
+        # -----------------------------------------
+        # Analytics Layer
+        # -----------------------------------------
+
+        analytics = (
+            VisitorManagementAnalyzer()
+            .analyze(report_data)
+        )
+
+        # -----------------------------------------
+        # Management Report
+        # -----------------------------------------
+
+        report = (
+            VisitorManagementReportService()
             .generate(
                 analytics
             )

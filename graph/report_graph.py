@@ -27,6 +27,10 @@ from agents.fallback_agent import (
     fallback_node
 )
 
+from agents.visitor_management_agent import (
+    visitor_management_node
+)
+
 
 # --------------------------------------------------
 # Route Based On Current Page Module
@@ -48,6 +52,10 @@ def route_module(
     elif current_module == "facilities":
 
         return "facilities"
+
+    elif current_module == "visitor":
+
+        return "visitor"
 
     elif current_module == "defect":
 
@@ -95,6 +103,11 @@ workflow.add_node(
 )
 
 workflow.add_node(
+    "visitor",
+    visitor_management_node
+)
+
+workflow.add_node(
     "defect",
     defect_node
 )
@@ -127,6 +140,7 @@ workflow.add_conditional_edges(
     {
         "feedback": "feedback",
         "facilities": "facilities",
+        "visitor": "visitor",
         "defect": "defect",
         "security": "security",
         "fallback": "fallback"
@@ -144,6 +158,11 @@ workflow.add_edge(
 
 workflow.add_edge(
     "facilities",
+    END
+)
+
+workflow.add_edge(
+    "visitor",
     END
 )
 
