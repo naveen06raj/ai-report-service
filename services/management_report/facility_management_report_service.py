@@ -35,14 +35,12 @@ class FacilityManagementReportService:
                 prompt
             )
 
-            report = (
+            return (
                 LLMResponseParser()
                 .parse_json(
                     response
                 )
             )
-
-            return report
 
         except Exception as ex:
 
@@ -51,24 +49,32 @@ class FacilityManagementReportService:
             )
 
             return {
+
                 "report": {
+
                     "title":
                         "Facility Booking Management Report",
 
                     "executive_summary":
-                        "Unable to generate management report.",
+                        "Unable to generate the facility booking management report.",
 
                     "key_findings": [
                         str(ex)
                     ],
 
-                    "key_risks": [],
+                    "key_risks": [
+                        "Management report could not be generated."
+                    ],
 
                     "recommended_actions": [
-                        "Review application logs."
+                        "Review the application logs.",
+                        "Verify the analytics data.",
+                        "Retry the report generation."
                     ],
 
                     "priority":
                         "Low"
+
                 }
+
             }

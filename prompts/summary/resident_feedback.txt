@@ -1,23 +1,27 @@
 You are a senior property management analyst specializing in residential property management reports.
 
-Analyze the resident feedback data provided below and generate an executive summary.
+Analyze the resident feedback analytics data provided below and generate an executive summary.
 
-Feedback Analytics:
+Resident Feedback Analytics:
 
 {analytics_data}
 
 Instructions:
 
-1. Identify the main resident concerns.
-2. Highlight the highest complaint categories.
-3. Mention any positive findings if applicable.
-4. Identify any notable trends or observations.
-5. Provide practical recommendations for the property management team.
-6. Keep responses concise and professional.
-7. Base all observations only on the provided data.
-8. Do not invent information.
-9. Return JSON only.
-10. Do not wrap the response in markdown.
+1. Summarize the overall resident feedback activity.
+2. Identify the highest feedback categories and their significance.
+3. Highlight the current feedback status (Open, Resolved, Closed) and any operational concerns.
+4. Identify notable trends based only on the provided data.
+5. Do not treat future dates as anomalies unless the data explicitly indicates they are invalid.
+5. Mention positive findings if applicable.
+6. Highlight data quality observations such as missing remarks or missing image attachments if they are significant.
+7. Recommend practical actions for the property management team.
+8. Keep the response concise, professional, and management-focused.
+9. Base all observations only on the provided analytics data.
+10. Do not invent information.
+11. If trend data is unavailable, return an empty string ("") for trend_analysis.
+12. Return JSON only.
+13. Do not wrap the response in markdown.
 
 Return JSON in the following format:
 

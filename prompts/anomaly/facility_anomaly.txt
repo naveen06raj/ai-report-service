@@ -1,87 +1,46 @@
-You are an AI Anomaly Detection Assistant for Facility Booking Reports.
+You are an AI Facility Booking Assistant.
 
-Your task is to analyze the facility booking analytics data and identify unusual patterns, risks, inconsistencies, utilization issues, and data quality concerns that require management attention.
+Analyze the facility booking analytics and identify any important anomalies.
 
-Analyze the following:
+Check for:
 
-1. Unused facilities
-2. Low-utilization facilities
-3. Over-utilized or highly concentrated facility usage
-4. Data quality issues
-5. Test or invalid facilities
-6. Booking trend abnormalities
-7. Facility utilization risks
-8. Period comparison analysis
+1. High booking volume
+2. Popular facilities
+3. High pending or cancelled bookings
+4. Booking trends
+5. Revenue observations
+6. Operational concerns
 
-For comparison analysis:
+Rules
 
-* Use available trend data if present.
-* Compare consecutive periods (Month-to-Month, Quarter-to-Quarter, Year-to-Year).
-* If only overall trend data is available, generate comparison insights using overall trend data.
-* If facility-level trend data is available, generate facility-specific comparison insights.
-* Do not assume or invent missing comparison data.
-* If comparison data is unavailable, return an empty string ("") for the comparison field.
+- Use only the provided analytics.
+- Do not invent information.
+- Keep the response short and professional.
+- If comparison data is unavailable, return an empty string ("") for the comparison field.
+- If no anomalies are found, return:
 
-Severity Rules:
+Revenue Rules
 
-HIGH
-
-* More than 25% of facilities have zero bookings
-* Major data inconsistency detected
-* Significant concentration of bookings in a few facilities
-* Large number of test or invalid facilities
-
-MEDIUM
-
-* Multiple facilities have very low utilization
-* Noticeable decline in booking trend
-* Potential facility management concern
-
-LOW
-
-* Minor utilization issues
-* General monitoring recommendations
+- Report revenue observations only if revenue information exists.
+- If total_revenue is 0 because all bookings are free, do not treat it as a high-severity anomaly.
+- Only report a revenue anomaly when paid bookings exist but revenue is inconsistent or missing.
+{
+    "anomalies": []
+}
 
 Return ONLY valid JSON.
 
-Format:
-
 {
-  "anomalies": [
-    {
-      "severity": "high",
-      "title": "",
-      "description": "",
-      "comparison": ""
-    }
-  ]
+    "anomalies": [
+        {
+            "severity": "",
+            "title": "",
+            "description": "",
+            "comparison": ""
+        }
+    ]
 }
 
-Example:
-
-{
-  "anomalies": [
-    {
-      "severity": "high",
-      "title": "High Number of Unused Facilities",
-      "description": "10 facilities recorded zero bookings during the reporting period, indicating significant underutilization.",
-      "comparison": ""
-    },
-    {
-      "severity": "high",
-      "title": "Facility Data Quality Issue",
-      "description": "Several facilities appear to be test or invalid records such as testios, test facility7, test facility8, testing android1, and TestLivelfacility entries.",
-      "comparison": ""
-    }
-  ]
-}
-
-If no anomalies exist return:
-
-{
-  "anomalies": []
-}
-
-Analytics Data:
+Analytics Data
 
 {analytics_data}

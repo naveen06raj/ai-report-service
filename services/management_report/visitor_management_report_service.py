@@ -24,6 +24,10 @@ class VisitorManagementReportService:
 
         try:
 
+            # ----------------------------------
+            # Build Prompt
+            # ----------------------------------
+
             prompt = (
                 PromptBuilder()
                 .build_visitor_management_report_prompt(
@@ -31,9 +35,17 @@ class VisitorManagementReportService:
                 )
             )
 
+            # ----------------------------------
+            # Gemini Response
+            # ----------------------------------
+
             response = generate(
                 prompt
             )
+
+            # ----------------------------------
+            # Parse JSON
+            # ----------------------------------
 
             report = (
                 LLMResponseParser()
@@ -51,24 +63,28 @@ class VisitorManagementReportService:
             )
 
             return {
+
                 "report": {
+
                     "title":
                         "Visitor Management Report",
 
                     "executive_summary":
-                        "Unable to generate management report.",
+                        "Unable to generate the visitor management report.",
 
-                    "key_findings": [
+                    "key_findings": [],
+
+                    "key_risks": [
                         str(ex)
                     ],
 
-                    "key_risks": [],
-
                     "recommended_actions": [
-                        "Review application logs."
+                        "Review the analytics data and application logs."
                     ],
 
                     "priority":
                         "Low"
+
                 }
+
             }

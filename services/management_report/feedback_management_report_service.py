@@ -24,6 +24,10 @@ class FeedbackManagementReportService:
 
         try:
 
+            # ----------------------------------
+            # Build Prompt
+            # ----------------------------------
+
             prompt = (
                 PromptBuilder()
                 .build_feedback_management_report_prompt(
@@ -31,9 +35,29 @@ class FeedbackManagementReportService:
                 )
             )
 
+            print("=" * 80)
+            print("MANAGEMENT REPORT PROMPT")
+            print("=" * 80)
+            print(prompt)
+            print("=" * 80)
+
+            # ----------------------------------
+            # Gemini
+            # ----------------------------------
+
             response = generate(
                 prompt
             )
+
+            print("=" * 80)
+            print("GEMINI RESPONSE")
+            print("=" * 80)
+            print(response)
+            print("=" * 80)
+
+            # ----------------------------------
+            # Parse JSON
+            # ----------------------------------
 
             report = (
                 LLMResponseParser()
@@ -41,6 +65,10 @@ class FeedbackManagementReportService:
                     response
                 )
             )
+
+            print("=" * 80)
+            print("MANAGEMENT REPORT GENERATED")
+            print("=" * 80)
 
             return report
 

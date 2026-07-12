@@ -53,9 +53,10 @@ class VisitorManagementAnomalyService:
             return {
                 "anomalies": [
                     {
-                        "severity": "low",
+                        "severity": "Low",
                         "title": "Detection Error",
-                        "description": str(ex)
+                        "description": str(ex),
+                        "comparison": ""
                     }
                 ]
             }

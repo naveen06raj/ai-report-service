@@ -29,41 +29,27 @@ async def ask_ai(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
-        )
-
-        period = request.get(
-            "period"
-        )
-
-        question = request.get(
-            "question"
+        login_id = request.get(
+            "login_id"
         )
 
         current_module = request.get(
             "module"
         )
 
-        if not property_id:
+        question = request.get(
+            "question"
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
+
+        if not login_id:
 
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
-            )
-
-        if not question:
-
-            raise HTTPException(
-                status_code=400,
-                detail="question is required"
+                detail="login_id is required"
             )
 
         if not current_module:
@@ -73,19 +59,36 @@ async def ask_ai(
                 detail="module is required"
             )
 
+        if not question:
+
+            raise HTTPException(
+                status_code=400,
+                detail="question is required"
+            )
+
+        # ----------------------------------
+        # Run AI Graph
+        # ----------------------------------
+
         response = run_report_graph(
-            property_id=property_id,
-            period=period,
+            login_id=login_id,
             question=question,
             current_module=current_module,
             authorization=authorization
         )
 
         return {
+
             "status": True,
+
+            "login_id": login_id,
+
             "module": current_module,
+
             "question": question,
+
             "answer": response
+
         }
 
     except HTTPException:

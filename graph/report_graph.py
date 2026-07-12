@@ -46,23 +46,18 @@ def route_module(
     )
 
     if current_module == "feedback":
-
         return "feedback"
 
     elif current_module == "facilities":
-
         return "facilities"
 
     elif current_module == "visitor":
-
         return "visitor"
 
     elif current_module == "defect":
-
         return "defect"
 
     elif current_module == "security":
-
         return "security"
 
     return "fallback"
@@ -131,7 +126,7 @@ workflow.set_entry_point(
 )
 
 # --------------------------------------------------
-# Route To Correct Agent
+# Route
 # --------------------------------------------------
 
 workflow.add_conditional_edges(
@@ -151,38 +146,15 @@ workflow.add_conditional_edges(
 # End Nodes
 # --------------------------------------------------
 
-workflow.add_edge(
-    "feedback",
-    END
-)
-
-workflow.add_edge(
-    "facilities",
-    END
-)
-
-workflow.add_edge(
-    "visitor",
-    END
-)
-
-workflow.add_edge(
-    "defect",
-    END
-)
-
-workflow.add_edge(
-    "security",
-    END
-)
-
-workflow.add_edge(
-    "fallback",
-    END
-)
+workflow.add_edge("feedback", END)
+workflow.add_edge("facilities", END)
+workflow.add_edge("visitor", END)
+workflow.add_edge("defect", END)
+workflow.add_edge("security", END)
+workflow.add_edge("fallback", END)
 
 # --------------------------------------------------
-# Compile Graph
+# Compile
 # --------------------------------------------------
 
 graph = workflow.compile()
@@ -193,22 +165,33 @@ graph = workflow.compile()
 # --------------------------------------------------
 
 def run_report_graph(
-    property_id: str,
-    period: str,
     question: str,
     current_module: str,
-    authorization: str
+    authorization: str,
+    login_id: int = None,
+    property_id: str = None,
+    period: str = None
 ) -> str:
 
+    state = {
+
+        # New modules
+        "login_id": login_id,
+
+        # Old modules
+        "property_id": property_id,
+        "period": period,
+
+        # Common
+        "question": question,
+        "current_module": current_module,
+        "authorization": authorization,
+        "answer": ""
+
+    }
+
     result = graph.invoke(
-        {
-            "property_id": property_id,
-            "period": period,
-            "question": question,
-            "current_module": current_module,
-            "authorization": authorization,
-            "answer": ""
-        }
+        state
     )
 
     return result.get(

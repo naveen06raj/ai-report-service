@@ -1,5 +1,5 @@
-from services.reports.report_client import (
-    ReportClient
+from services.reports.feedback_client import (
+    FeedbackClient
 )
 
 
@@ -7,16 +7,14 @@ class FeedbackReportService:
 
     def get_report(
         self,
-        property_id: str,
-        period: str,
+        login_id: int,
         authorization: str
     ):
 
         return (
-            ReportClient()
+            FeedbackClient()
             .get_report(
-                property_id=property_id,
-                period=period,
+                login_id=login_id,
                 authorization=authorization
             )
         )

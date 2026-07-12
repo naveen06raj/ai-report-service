@@ -1,5 +1,5 @@
-from services.reports.report_client import (
-    ReportClient
+from services.reports.facility_booking_client import (
+    FacilityBookingClient
 )
 
 
@@ -7,23 +7,19 @@ class FacilityBookingReportService:
 
     def get_report(
         self,
-        property_id: str,
-        period: str,
+        login_id: int,
         authorization: str
-    ):
+    ) -> dict:
 
         try:
 
-            report = (
-                ReportClient()
+            return (
+                FacilityBookingClient()
                 .get_report(
-                    property_id=property_id,
-                    period=period,
+                    login_id=login_id,
                     authorization=authorization
                 )
             )
-
-            return report
 
         except Exception as ex:
 

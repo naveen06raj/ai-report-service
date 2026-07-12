@@ -1,4 +1,3 @@
-import json
 import logging
 
 from services.llm.prompt_builder import (
@@ -36,14 +35,12 @@ class FacilityAnomalyService:
                 prompt
             )
 
-            anomalies = (
+            return (
                 LLMResponseParser()
                 .parse_json(
                     response
                 )
             )
-
-            return anomalies
 
         except Exception as ex:
 
@@ -52,11 +49,25 @@ class FacilityAnomalyService:
             )
 
             return {
+
                 "anomalies": [
+
                     {
-                        "severity": "low",
-                        "title": "Detection Error",
-                        "description": str(ex)
+
+                        "severity":
+                            "low",
+
+                        "title":
+                            "Detection Error",
+
+                        "description":
+                            str(ex),
+
+                        "comparison":
+                            ""
+
                     }
+
                 ]
+
             }

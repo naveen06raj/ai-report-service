@@ -1,4 +1,3 @@
-import json
 import logging
 
 from services.llm.prompt_builder import (
@@ -25,6 +24,10 @@ class FeedbackAnomalyService:
 
         try:
 
+            # ----------------------------------
+            # Build Prompt
+            # ----------------------------------
+
             prompt = (
                 PromptBuilder()
                 .build_feedback_anomaly_prompt(
@@ -32,9 +35,29 @@ class FeedbackAnomalyService:
                 )
             )
 
+            print("=" * 80)
+            print("ANOMALY PROMPT CREATED")
+            print("=" * 80)
+            print(prompt)
+            print("=" * 80)
+
+            # ----------------------------------
+            # Gemini
+            # ----------------------------------
+
             response = generate(
                 prompt
             )
+
+            print("=" * 80)
+            print("GEMINI RESPONSE")
+            print("=" * 80)
+            print(response)
+            print("=" * 80)
+
+            # ----------------------------------
+            # Parse JSON
+            # ----------------------------------
 
             anomalies = (
                 LLMResponseParser()
@@ -42,6 +65,10 @@ class FeedbackAnomalyService:
                     response
                 )
             )
+
+            print("=" * 80)
+            print("ANOMALIES PARSED")
+            print("=" * 80)
 
             return anomalies
 
@@ -56,7 +83,8 @@ class FeedbackAnomalyService:
                     {
                         "severity": "low",
                         "title": "Detection Error",
-                        "description": str(ex)
+                        "description": str(ex),
+                        "comparison": ""
                     }
                 ]
             }

@@ -4,6 +4,10 @@ from services.reports.facility_booking_report import (
     FacilityBookingReportService
 )
 
+from services.analytics.facility_booking_analyzer import (
+    FacilityBookingAnalyzer
+)
+
 from services.llm.prompt_builder import (
     PromptBuilder
 )
@@ -23,12 +27,8 @@ def facilities_node(state):
 
     try:
 
-        property_id = state.get(
-            "property_id"
-        )
-
-        period = state.get(
-            "period"
+        login_id = state.get(
+            "login_id"
         )
 
         question = state.get(
@@ -40,15 +40,47 @@ def facilities_node(state):
         )
 
         # ----------------------------------
+        # Validation
+        # ----------------------------------
+
+        if not login_id:
+
+            raise Exception(
+                "login_id is required."
+            )
+
+        if not authorization:
+
+            raise Exception(
+                "Authorization token is required."
+            )
+
+        if not question:
+
+            raise Exception(
+                "Question is required."
+            )
+
+        # ----------------------------------
         # Get Facility Booking Report
         # ----------------------------------
 
         report_data = (
             FacilityBookingReportService()
             .get_report(
-                property_id=property_id,
-                period=period,
+                login_id=login_id,
                 authorization=authorization
+            )
+        )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
+
+        analytics = (
+            FacilityBookingAnalyzer()
+            .analyze(
+                report_data
             )
         )
 
@@ -59,10 +91,16 @@ def facilities_node(state):
         prompt = (
             PromptBuilder()
             .build_facility_chat_prompt(
-                report_data=report_data,
+                report_data=analytics,
                 question=question
             )
         )
+
+        print("=" * 80)
+        print("FACILITY CHAT PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
 
         # ----------------------------------
         # Gemini Response
@@ -71,6 +109,12 @@ def facilities_node(state):
         llm_response = generate(
             prompt
         )
+
+        print("=" * 80)
+        print("GEMINI RESPONSE")
+        print("=" * 80)
+        print(llm_response)
+        print("=" * 80)
 
         # ----------------------------------
         # Parse Response
@@ -90,7 +134,7 @@ def facilities_node(state):
     except Exception as ex:
 
         logger.exception(
-            "Facilities Agent Failed"
+            "Facility Agent Failed"
         )
 
         state["answer"] = (

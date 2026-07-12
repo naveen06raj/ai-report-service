@@ -14,3 +14,4 @@ env/
 *.log
 
 application_default_credentials.json
+key.json

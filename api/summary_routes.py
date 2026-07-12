@@ -5,14 +5,25 @@ from fastapi import (
     Header
 )
 
-import requests
+
+from services.reports.feedback_report import (
+    FeedbackReportService
+)
 
 from services.analytics.resident_feedback_analyzer import (
     ResidentFeedbackAnalyzer
 )
 
+from services.reports.facility_booking_report import (
+    FacilityBookingReportService
+)
+
 from services.analytics.facility_booking_analyzer import (
     FacilityBookingAnalyzer
+)
+
+from services.reports.visitor_management_report import (
+    VisitorManagementReportService
 )
 
 from services.analytics.visitor_management_analyzer import (
@@ -32,9 +43,6 @@ from services.llm.llm_response_parser import (
 )
 
 
-BACKEND_REPORT_URL = (
-    "https://aereanew.panzerplayground.com/api/reports/properties"
-)
 
 router = APIRouter(
     prefix="/summary",
@@ -51,7 +59,7 @@ async def resident_feedback_summary(
     try:
 
         print("=" * 80)
-        print("SUMMARY API STARTED")
+        print("FEEDBACK SUMMARY API STARTED")
         print("=" * 80)
 
         if not authorization:
@@ -61,60 +69,56 @@ async def resident_feedback_summary(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get("property")
-        period = request.get("period")
-
-        print("PROPERTY:", property_id)
-        print("PERIOD:", period)
-        print("URL:", BACKEND_REPORT_URL)
-
-        if not property_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
-            )
-
-        print("CALLING REPORT API...")
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization": authorization,
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            },
-            json={
-                "property": property_id,
-                "period": period
-            },
-            timeout=60
+        login_id = request.get(
+            "login_id"
         )
 
         print(
-            "API STATUS:",
-            backend_response.status_code
+            "LOGIN ID:",
+            login_id
         )
 
-        backend_response.raise_for_status()
+        if not login_id:
 
-        report_data = backend_response.json()
+            raise HTTPException(
+                status_code=400,
+                detail="login_id is required"
+            )
 
-        print("REPORT RECEIVED")
+        print(
+            "CALLING FEEDBACK APIS..."
+        )
+
+        report_data = (
+            FeedbackReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
+        )
+
+        print(
+            "REPORT RECEIVED"
+        )
 
         analytics = (
             ResidentFeedbackAnalyzer()
-            .analyze(report_data)
+            .analyze(
+                report_data
+            )
         )
 
-        print("ANALYTICS CREATED")
+        print(
+            "ANALYTICS CREATED"
+        )
+
+        import json
+
+        print("=" * 80)
+        print("ANALYTICS")
+        print("=" * 80)
+        print(json.dumps(analytics, indent=4))
+        print("=" * 80)
 
         prompt = (
             PromptBuilder()
@@ -123,13 +127,29 @@ async def resident_feedback_summary(
             )
         )
 
-        print("PROMPT CREATED")
+        print(
+            "PROMPT CREATED"
+        )
+
+        print("=" * 80)
+        print("PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
 
         gemini_response = generate(
             prompt
         )
 
-        print("GEMINI RESPONSE RECEIVED")
+        print(
+            "GEMINI RESPONSE RECEIVED"
+        )
+
+        print("=" * 80)
+        print("RAW GEMINI RESPONSE")
+        print("=" * 80)
+        print(gemini_response)
+        print("=" * 80)
 
         summary = (
             LLMResponseParser()
@@ -138,27 +158,22 @@ async def resident_feedback_summary(
             )
         )
 
-        print("SUMMARY PARSED")
+        print(
+            "SUMMARY PARSED"
+        )
 
         return {
+
             "status": True,
-            "property": property_id,
-            "period": period,
+
+            "login_id": login_id,
+
             "summary": summary
+
         }
 
     except HTTPException:
         raise
-
-    except requests.exceptions.RequestException as ex:
-
-        print("REQUEST ERROR:")
-        print(str(ex))
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Backend API Error: {str(ex)}"
-        )
 
     except Exception as ex:
 
@@ -172,6 +187,10 @@ async def resident_feedback_summary(
             detail=str(ex)
         )
 
+
+# --------------------------------------------------
+# Facility Booking Summary
+# --------------------------------------------------
 
 # --------------------------------------------------
 # Facility Booking Summary
@@ -196,78 +215,32 @@ async def facility_booking_summary(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
-        )
-
-        period = request.get(
-            "period"
+        login_id = request.get(
+            "login_id"
         )
 
         print(
-            "PROPERTY:",
-            property_id
+            "LOGIN ID:",
+            login_id
         )
 
-        print(
-            "PERIOD:",
-            period
-        )
-
-        print(
-            "URL:",
-            BACKEND_REPORT_URL
-        )
-
-        if not property_id:
+        if not login_id:
 
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
+                detail="login_id is required"
             )
 
         print(
-            "CALLING REPORT API..."
+            "CALLING FACILITY BOOKING APIS..."
         )
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization":
-                    authorization,
-
-                "Accept":
-                    "application/json",
-
-                "Content-Type":
-                    "application/json"
-            },
-            json={
-                "property":
-                    property_id,
-
-                "period":
-                    period
-            },
-            timeout=60
-        )
-
-        print(
-            "API STATUS:",
-            backend_response.status_code
-        )
-
-        backend_response.raise_for_status()
 
         report_data = (
-            backend_response.json()
+            FacilityBookingReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
         )
 
         print(
@@ -285,6 +258,19 @@ async def facility_booking_summary(
             "FACILITY ANALYTICS CREATED"
         )
 
+        import json
+
+        print("=" * 80)
+        print("FACILITY ANALYTICS")
+        print("=" * 80)
+        print(
+            json.dumps(
+                analytics,
+                indent=4
+            )
+        )
+        print("=" * 80)
+
         prompt = (
             PromptBuilder()
             .build_facility_summary_prompt(
@@ -296,6 +282,12 @@ async def facility_booking_summary(
             "PROMPT CREATED"
         )
 
+        print("=" * 80)
+        print("PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
+
         gemini_response = generate(
             prompt
         )
@@ -303,6 +295,12 @@ async def facility_booking_summary(
         print(
             "GEMINI RESPONSE RECEIVED"
         )
+
+        print("=" * 80)
+        print("RAW GEMINI RESPONSE")
+        print("=" * 80)
+        print(gemini_response)
+        print("=" * 80)
 
         summary = (
             LLMResponseParser()
@@ -316,25 +314,17 @@ async def facility_booking_summary(
         )
 
         return {
+
             "status": True,
-            "property": property_id,
-            "period": period,
+
+            "login_id": login_id,
+
             "summary": summary
+
         }
 
     except HTTPException:
         raise
-
-    except requests.exceptions.RequestException as ex:
-
-        print("REQUEST ERROR:")
-        print(str(ex))
-
-        raise HTTPException(
-            status_code=500,
-            detail=
-            f"Backend API Error: {str(ex)}"
-        )
 
     except Exception as ex:
 
@@ -371,83 +361,45 @@ async def visitor_management_summary(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
-        )
-
-        period = request.get(
-            "period"
+        login_id = request.get(
+            "login_id"
         )
 
         print(
-            "PROPERTY:",
-            property_id
+            "LOGIN ID:",
+            login_id
         )
 
-        print(
-            "PERIOD:",
-            period
-        )
-
-        print(
-            "URL:",
-            BACKEND_REPORT_URL
-        )
-
-        if not property_id:
+        if not login_id:
 
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
+                detail="login_id is required"
             )
 
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
-            )
+        # ----------------------------------
+        # Call Visitor APIs
+        # ----------------------------------
 
         print(
-            "CALLING REPORT API..."
+            "CALLING VISITOR APIS..."
         )
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization":
-                    authorization,
-
-                "Accept":
-                    "application/json",
-
-                "Content-Type":
-                    "application/json"
-            },
-            json={
-                "property":
-                    property_id,
-
-                "period":
-                    period
-            },
-            timeout=60
-        )
-
-        print(
-            "API STATUS:",
-            backend_response.status_code
-        )
-
-        backend_response.raise_for_status()
 
         report_data = (
-            backend_response.json()
+            VisitorManagementReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
         )
 
         print(
             "REPORT RECEIVED"
         )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
 
         analytics = (
             VisitorManagementAnalyzer()
@@ -460,6 +412,23 @@ async def visitor_management_summary(
             "VISITOR ANALYTICS CREATED"
         )
 
+        import json
+
+        print("=" * 80)
+        print("VISITOR ANALYTICS")
+        print("=" * 80)
+        print(
+            json.dumps(
+                analytics,
+                indent=4
+            )
+        )
+        print("=" * 80)
+
+        # ----------------------------------
+        # Prompt
+        # ----------------------------------
+
         prompt = (
             PromptBuilder()
             .build_visitor_summary_prompt(
@@ -467,17 +436,25 @@ async def visitor_management_summary(
             )
         )
 
-        print(
-            "PROMPT CREATED"
-        )
+        print("=" * 80)
+        print("PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
+
+        # ----------------------------------
+        # Gemini
+        # ----------------------------------
 
         gemini_response = generate(
             prompt
         )
 
-        print(
-            "GEMINI RESPONSE RECEIVED"
-        )
+        print("=" * 80)
+        print("RAW GEMINI RESPONSE")
+        print("=" * 80)
+        print(gemini_response)
+        print("=" * 80)
 
         summary = (
             LLMResponseParser()
@@ -491,25 +468,17 @@ async def visitor_management_summary(
         )
 
         return {
+
             "status": True,
-            "property": property_id,
-            "period": period,
+
+            "login_id": login_id,
+
             "summary": summary
+
         }
 
     except HTTPException:
         raise
-
-    except requests.exceptions.RequestException as ex:
-
-        print("REQUEST ERROR:")
-        print(str(ex))
-
-        raise HTTPException(
-            status_code=500,
-            detail=
-            f"Backend API Error: {str(ex)}"
-        )
 
     except Exception as ex:
 

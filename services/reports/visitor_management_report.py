@@ -1,5 +1,5 @@
-from services.reports.report_client import (
-    ReportClient
+from services.reports.visitor_management_client import (
+    VisitorManagementClient
 )
 
 
@@ -7,16 +7,22 @@ class VisitorManagementReportService:
 
     def get_report(
         self,
-        property_id: str,
-        period: str,
+        login_id: int,
         authorization: str
-    ):
+    ) -> dict:
 
-        return (
-            ReportClient()
-            .get_report(
-                property_id=property_id,
-                period=period,
-                authorization=authorization
+        try:
+
+            return (
+                VisitorManagementClient()
+                .get_report(
+                    login_id=login_id,
+                    authorization=authorization
+                )
             )
-        )
+
+        except Exception as ex:
+
+            raise Exception(
+                f"Failed to fetch visitor management report: {str(ex)}"
+            )

@@ -5,6 +5,9 @@ from fastapi import (
 )
 
 import requests
+from services.reports.feedback_report import (
+    FeedbackReportService
+)
 
 from services.analytics.resident_feedback_analyzer import (
     ResidentFeedbackAnalyzer
@@ -20,6 +23,14 @@ from services.analytics.facility_booking_analyzer import (
 
 from services.management_report.facility_management_report_service import (
     FacilityManagementReportService
+)
+
+from services.reports.facility_booking_report import (
+    FacilityBookingReportService
+)
+
+from services.reports.visitor_management_report import (
+    VisitorManagementReportService as VisitorReportService
 )
 
 from services.analytics.visitor_management_analyzer import (
@@ -63,51 +74,32 @@ async def resident_feedback_management_report(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
+        login_id = request.get(
+            "login_id"
         )
 
-        period = request.get(
-            "period"
-        )
-
-        if not property_id:
+        if not login_id:
 
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
+                detail="login_id is required"
             )
 
         # -----------------------------------------
-        # Call Backend Report API
+        # Call Feedback APIs
         # -----------------------------------------
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization": authorization,
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            },
-            json={
-                "property": property_id,
-                "period": period
-            },
-            timeout=60
-        )
-
-        backend_response.raise_for_status()
 
         report_data = (
-            backend_response.json()
+            FeedbackReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
         )
+
+        print("=" * 80)
+        print("REPORT RECEIVED")
+        print("=" * 80)
 
         # -----------------------------------------
         # Analytics Layer
@@ -115,8 +107,14 @@ async def resident_feedback_management_report(
 
         analytics = (
             ResidentFeedbackAnalyzer()
-            .analyze(report_data)
+            .analyze(
+                report_data
+            )
         )
+
+        print("=" * 80)
+        print("ANALYTICS CREATED")
+        print("=" * 80)
 
         # -----------------------------------------
         # Management Report
@@ -129,19 +127,33 @@ async def resident_feedback_management_report(
             )
         )
 
-        return report
+        print("=" * 80)
+        print("MANAGEMENT REPORT GENERATED")
+        print("=" * 80)
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "report": report
+
+        }
 
     except HTTPException:
         raise
 
-    except requests.exceptions.RequestException as ex:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Backend API Error: {str(ex)}"
-        )
-
     except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print("=" * 80)
+
+        import traceback
+        traceback.print_exc()
+
+        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
@@ -163,51 +175,32 @@ async def facility_booking_management_report(
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
+        login_id = request.get(
+            "login_id"
         )
 
-        period = request.get(
-            "period"
-        )
-
-        if not property_id:
+        if not login_id:
 
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
+                detail="login_id is required"
             )
 
         # -----------------------------------------
-        # Call Backend Report API
+        # Call Facility Booking APIs
         # -----------------------------------------
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization": authorization,
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            },
-            json={
-                "property": property_id,
-                "period": period
-            },
-            timeout=60
-        )
-
-        backend_response.raise_for_status()
 
         report_data = (
-            backend_response.json()
+            FacilityBookingReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
         )
+
+        print("=" * 80)
+        print("REPORT RECEIVED")
+        print("=" * 80)
 
         # -----------------------------------------
         # Analytics Layer
@@ -215,8 +208,14 @@ async def facility_booking_management_report(
 
         analytics = (
             FacilityBookingAnalyzer()
-            .analyze(report_data)
+            .analyze(
+                report_data
+            )
         )
+
+        print("=" * 80)
+        print("ANALYTICS CREATED")
+        print("=" * 80)
 
         # -----------------------------------------
         # Management Report
@@ -229,19 +228,32 @@ async def facility_booking_management_report(
             )
         )
 
-        return report
+        print("=" * 80)
+        print("MANAGEMENT REPORT GENERATED")
+        print("=" * 80)
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "report": report
+
+        }
 
     except HTTPException:
         raise
 
-    except requests.exceptions.RequestException as ex:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Backend API Error: {str(ex)}"
-        )
-
     except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print("=" * 80)
+
+        import traceback
+        traceback.print_exc()
+        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
@@ -257,69 +269,52 @@ async def visitor_management_report(
     try:
 
         if not authorization:
-
             raise HTTPException(
                 status_code=401,
                 detail="Authorization header missing"
             )
 
-        property_id = request.get(
-            "property"
-        )
+        login_id = request.get("login_id")
 
-        period = request.get(
-            "period"
-        )
-
-        if not property_id:
-
+        if not login_id:
             raise HTTPException(
                 status_code=400,
-                detail="property is required"
-            )
-
-        if not period:
-
-            raise HTTPException(
-                status_code=400,
-                detail="period is required"
+                detail="login_id is required"
             )
 
         # -----------------------------------------
-        # Call Backend Report API
+        # Call Visitor Management APIs
         # -----------------------------------------
-
-        backend_response = requests.post(
-            BACKEND_REPORT_URL,
-            headers={
-                "Authorization": authorization,
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            },
-            json={
-                "property": property_id,
-                "period": period
-            },
-            timeout=60
-        )
-
-        backend_response.raise_for_status()
 
         report_data = (
-            backend_response.json()
+            VisitorReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
         )
 
+        print("=" * 80)
+        print("REPORT RECEIVED")
+        print("=" * 80)
+
         # -----------------------------------------
-        # Analytics Layer
+        # Analytics
         # -----------------------------------------
 
         analytics = (
             VisitorManagementAnalyzer()
-            .analyze(report_data)
+            .analyze(
+                report_data
+            )
         )
 
+        print("=" * 80)
+        print("ANALYTICS CREATED")
+        print("=" * 80)
+
         # -----------------------------------------
-        # Management Report
+        # AI Management Report
         # -----------------------------------------
 
         report = (
@@ -329,19 +324,33 @@ async def visitor_management_report(
             )
         )
 
-        return report
+        print("=" * 80)
+        print("MANAGEMENT REPORT GENERATED")
+        print("=" * 80)
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "report": report
+
+        }
 
     except HTTPException:
         raise
 
-    except requests.exceptions.RequestException as ex:
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Backend API Error: {str(ex)}"
-        )
-
     except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print("=" * 80)
+
+        import traceback
+        traceback.print_exc()
+
+        print("=" * 80)
 
         raise HTTPException(
             status_code=500,

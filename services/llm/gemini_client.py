@@ -1,8 +1,10 @@
-from langchain_google_vertexai import ChatVertexAI
 import logging
 import os
 
+import vertexai
+
 from dotenv import load_dotenv
+from langchain_google_vertexai import ChatVertexAI
 
 # --------------------------------------------------
 # Load Environment Variables
@@ -17,17 +19,31 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------
-# GCP Configuration
+# Google Cloud Configuration
 # --------------------------------------------------
 
-GCP_PROJECT_ID = os.getenv(
-    "GCP_PROJECT_ID",
-    "announcement-ai-project"
+PROJECT_ID = os.getenv(
+    "PROJECT_ID",
+    "ai-service-502218"
 )
 
-GOOGLE_LOCATION = os.getenv(
-    "GOOGLE_LOCATION",
-    "us-central1"
+LOCATION = os.getenv(
+    "LOCATION",
+    "asia-southeast1"
+)
+
+MODEL_NAME = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-2.5-flash"
+)
+
+# --------------------------------------------------
+# Initialize Vertex AI
+# --------------------------------------------------
+
+vertexai.init(
+    project=PROJECT_ID,
+    location=LOCATION
 )
 
 # --------------------------------------------------
@@ -37,10 +53,8 @@ GOOGLE_LOCATION = os.getenv(
 def get_chat_model(**overrides):
 
     config = {
-        "model": "gemini-2.5-flash",
-        "temperature": 0.0,
-        "project": GCP_PROJECT_ID,
-        "location": GOOGLE_LOCATION
+        "model": MODEL_NAME,
+        "temperature": 0.0
     }
 
     config.update(overrides)
@@ -57,9 +71,7 @@ def generate(prompt: str) -> str:
 
         llm = get_chat_model()
 
-        response = llm.invoke(
-            prompt
-        )
+        response = llm.invoke(prompt)
 
         return response.content
 
