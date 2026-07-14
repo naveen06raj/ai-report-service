@@ -9,7 +9,7 @@ class VisitorManagementClient:
     VISITOR_SUMMARY_URL = (
         "https://aereanew.panzerplayground.com/api/ops/v4/visitorsummary"
     )
-
+#api
     VISITOR_TYPES_URL = (
         "https://aereanew.panzerplayground.com/api/ops/v4/visitor_types"
     )
