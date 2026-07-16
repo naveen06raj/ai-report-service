@@ -131,6 +131,24 @@ class PromptBuilder:
                     analytics_data
             }
         )
+
+        # --------------------------------------------------
+    # Financial Summary Prompt
+    # --------------------------------------------------
+
+    def build_financial_summary_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/summary/financial_summary.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
     # --------------------------------------------------
     # Feedback Chat Prompt
     # --------------------------------------------------
@@ -196,6 +214,27 @@ class PromptBuilder:
                     question
             }
         )
+            # --------------------------------------------------
+    # Financial Chat Prompt
+    # --------------------------------------------------
+
+    def build_financial_chat_prompt(
+        self,
+        report_data: dict,
+        question: str
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/chat/financial_chat.txt",
+            placeholders={
+                "report_data":
+                    report_data,
+
+                "question":
+                    question
+            }
+        )
 
     # --------------------------------------------------
     # Feedback Anomaly Prompt
@@ -252,6 +291,25 @@ class PromptBuilder:
             }
         )
 
+                # --------------------------------------------------
+    # Financial Anomaly Prompt
+    # --------------------------------------------------
+
+    def build_financial_anomaly_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/anomaly/financial_anomaly.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+
     # --------------------------------------------------
     # Feedback Management Report Prompt
     # --------------------------------------------------
@@ -305,6 +363,27 @@ class PromptBuilder:
                     analytics_data
             }
         )
+
+            # --------------------------------------------------
+    # Financial Management Report Prompt
+    # --------------------------------------------------
+
+    def build_financial_management_report_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/management_report/financial_management_report.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+
+
     # --------------------------------------------------
     # Router Prompt
     # --------------------------------------------------

@@ -40,6 +40,18 @@ from services.anomaly.visitor_management_anomaly_service import (
     VisitorManagementAnomalyService
 )
 
+from services.reports.financial_report import (
+    FinancialReportService
+)
+
+from services.analytics.financial_overview_analyzer import (
+    FinancialAnalyzer
+)
+
+from services.anomaly.financial_anomaly_service import (
+    FinancialAnomalyService
+)
+
 router = APIRouter(
     prefix="/anomaly",
     tags=["AI Anomaly Detection"]
@@ -253,6 +265,129 @@ async def visitor_management_anomaly(
 
         anomalies = (
             VisitorManagementAnomalyService()
+            .detect(
+                analytics
+            )
+        )
+
+        print("=" * 80)
+        print("ANOMALIES GENERATED")
+        print("=" * 80)
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "anomalies": anomalies
+
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print("=" * 80)
+
+        import traceback
+        traceback.print_exc()
+
+        print("=" * 80)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+# ==================================================
+# Financial Overview
+# ==================================================
+
+@router.post("/financial-overview")
+async def financial_overview_anomaly(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        print("=" * 80)
+        print("FINANCIAL ANOMALY API STARTED")
+        print("=" * 80)
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        if not login_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="login_id is required"
+            )
+
+        # ----------------------------------
+        # Financial APIs
+        # ----------------------------------
+
+        report_data = (
+            FinancialReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
+        )
+
+        print("=" * 80)
+        print("REPORT RECEIVED")
+        print("=" * 80)
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
+
+        analytics = (
+            FinancialAnalyzer()
+            .analyze(
+                report_data
+            )
+        )
+
+        print("=" * 80)
+        print("ANALYTICS CREATED")
+        print("=" * 80)
+
+        import json
+
+        print(
+            json.dumps(
+                analytics,
+                indent=4
+            )
+        )
+
+        # ----------------------------------
+        # AI Anomaly Detection
+        # ----------------------------------
+
+        anomalies = (
+            FinancialAnomalyService()
             .detect(
                 analytics
             )

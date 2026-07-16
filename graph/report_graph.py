@@ -31,6 +31,10 @@ from agents.visitor_management_agent import (
     visitor_management_node
 )
 
+from agents.financial_agent import (
+    financial_node
+)
+
 
 # --------------------------------------------------
 # Route Based On Current Page Module
@@ -53,6 +57,9 @@ def route_module(
 
     elif current_module == "visitor":
         return "visitor"
+    
+    elif current_module == "financial":
+        return "financial"
 
     elif current_module == "defect":
         return "defect"
@@ -103,6 +110,11 @@ workflow.add_node(
 )
 
 workflow.add_node(
+    "financial",
+    financial_node
+)
+
+workflow.add_node(
     "defect",
     defect_node
 )
@@ -136,6 +148,7 @@ workflow.add_conditional_edges(
         "feedback": "feedback",
         "facilities": "facilities",
         "visitor": "visitor",
+        "financial": "financial",
         "defect": "defect",
         "security": "security",
         "fallback": "fallback"
@@ -149,6 +162,7 @@ workflow.add_conditional_edges(
 workflow.add_edge("feedback", END)
 workflow.add_edge("facilities", END)
 workflow.add_edge("visitor", END)
+workflow.add_edge("financial", END)
 workflow.add_edge("defect", END)
 workflow.add_edge("security", END)
 workflow.add_edge("fallback", END)

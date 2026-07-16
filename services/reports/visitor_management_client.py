@@ -7,11 +7,11 @@ logger = logging.getLogger(__name__)
 class VisitorManagementClient:
 
     VISITOR_SUMMARY_URL = (
-        "https://aereanew.panzerplayground.com/api/ops/v4/visitorsummary"
+        "https://newaws.panzerplayground.com/api/ops/v4/visitorsummary"
     )
 
     VISITOR_TYPES_URL = (
-        "https://aereanew.panzerplayground.com/api/ops/v4/visitor_types"
+        "https://newaws.panzerplayground.com/api/ops/v4/visitor_types"
     )
 
     def get_report(

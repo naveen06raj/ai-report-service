@@ -9,11 +9,11 @@ class FacilityBookingClient:
     TIMEOUT = 60
 
     FACILITY_OPTIONS_URL = (
-        "https://aereanew.panzerplayground.com/api/ops/v4/facilityoptions"
+        "https://newaws.panzerplayground.com/api/ops/v4/facilityoptions"
     )
 
     FACILITY_LIST_URL = (
-        "https://aereanew.panzerplayground.com/api/ops/v4/facilitylist"
+        "https://newaws.panzerplayground.com/api/ops/v4/facilitylist"
     )
 
     def _post(

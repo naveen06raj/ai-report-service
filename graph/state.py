@@ -7,13 +7,21 @@ class ReportState(
 ):
 
     # ----------------------------------
-    # Feedback Module
+    # Common Login
     # ----------------------------------
 
     login_id: int
 
+    authorization: str
+
     # ----------------------------------
-    # Other Modules
+    # Financial
+    # ----------------------------------
+
+    invoice_id: int
+
+    # ----------------------------------
+    # Old Modules
     # ----------------------------------
 
     property_id: str
@@ -27,8 +35,6 @@ class ReportState(
     question: str
 
     current_module: str
-
-    authorization: str
 
     detected_module: str
 

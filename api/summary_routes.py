@@ -42,6 +42,13 @@ from services.llm.llm_response_parser import (
     LLMResponseParser
 )
 
+from services.reports.financial_report import (
+    FinancialReportService
+)
+
+from services.analytics.financial_overview_analyzer import (
+    FinancialAnalyzer
+)
 
 
 router = APIRouter(
@@ -432,6 +439,160 @@ async def visitor_management_summary(
         prompt = (
             PromptBuilder()
             .build_visitor_summary_prompt(
+                analytics
+            )
+        )
+
+        print("=" * 80)
+        print("PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
+
+        # ----------------------------------
+        # Gemini
+        # ----------------------------------
+
+        gemini_response = generate(
+            prompt
+        )
+
+        print("=" * 80)
+        print("RAW GEMINI RESPONSE")
+        print("=" * 80)
+        print(gemini_response)
+        print("=" * 80)
+
+        summary = (
+            LLMResponseParser()
+            .parse_json(
+                gemini_response
+            )
+        )
+
+        print(
+            "SUMMARY PARSED"
+        )
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "summary": summary
+
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print(traceback.format_exc())
+        print("=" * 80)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+# --------------------------------------------------
+# Financial Summary
+# --------------------------------------------------
+
+@router.post("/financial-overview")
+async def financial_summary(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        print("=" * 80)
+        print("FINANCIAL SUMMARY API STARTED")
+        print("=" * 80)
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        if not login_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="login_id is required"
+            )
+
+        # ----------------------------------
+        # Call Financial APIs
+        # ----------------------------------
+
+        print(
+            "CALLING FINANCIAL APIS..."
+        )
+
+        report_data = (
+            FinancialReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
+        )
+
+        print(
+            "REPORT RECEIVED"
+        )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
+
+        analytics = (
+            FinancialAnalyzer()
+            .analyze(
+                report_data
+            )
+        )
+
+        print(
+            "FINANCIAL ANALYTICS CREATED"
+        )
+
+        import json
+
+        print("=" * 80)
+        print("FINANCIAL ANALYTICS")
+        print("=" * 80)
+        print(
+            json.dumps(
+                analytics,
+                indent=4
+            )
+        )
+        print("=" * 80)
+
+        # ----------------------------------
+        # Prompt
+        # ----------------------------------
+
+        prompt = (
+            PromptBuilder()
+            .build_financial_summary_prompt(
                 analytics
             )
         )
