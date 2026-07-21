@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.summary_routes import (
     router as summary_router
@@ -20,6 +21,20 @@ app = FastAPI(
     title="AI Report Service",
     description="AI-powered Property Report Service",
     version="1.0.0"
+)
+
+# ----------------------------------------
+# CORS Configuration
+# ----------------------------------------
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://aereareport.panzerplayground.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ----------------------------------------
