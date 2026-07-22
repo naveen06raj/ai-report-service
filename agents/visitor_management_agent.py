@@ -23,12 +23,12 @@ def visitor_management_node(state):
 
     try:
 
-        property_id = state.get(
-            "property_id"
-        )
+        # ----------------------------------
+        # Get State Values
+        # ----------------------------------
 
-        period = state.get(
-            "period"
+        login_id = state.get(
+            "login_id"
         )
 
         question = state.get(
@@ -46,8 +46,7 @@ def visitor_management_node(state):
         report_data = (
             VisitorManagementReportService()
             .get_report(
-                property_id=property_id,
-                period=period,
+                login_id=login_id,
                 authorization=authorization
             )
         )
@@ -94,8 +93,7 @@ def visitor_management_node(state):
         )
 
         state["answer"] = (
-            f"Unable to process visitor management question: "
-            f"{str(ex)}"
+            f"Unable to process visitor management question: {str(ex)}"
         )
 
         return state
