@@ -401,3 +401,33 @@ class PromptBuilder:
                     question
             }
         )
+
+        # --------------------------------------------------
+    # Threshold Advisor Prompt
+    # --------------------------------------------------
+
+    def build_threshold_advisor_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/threshold/threshold_advisor.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+    def build_auto_tune_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file="prompts/threshold/auto_tune.txt",
+            placeholders={
+                "analytics_data": analytics_data
+            }
+        )

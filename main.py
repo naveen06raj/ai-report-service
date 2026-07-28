@@ -17,6 +17,10 @@ from api.management_report_routes import (
     router as management_report_router
 )
 
+from api.threshold_routes import (
+    router as threshold_router
+)
+
 app = FastAPI(
     title="AI Report Service",
     description="AI-powered Property Report Service",
@@ -55,6 +59,10 @@ app.include_router(
 
 app.include_router(
     management_report_router
+)
+
+app.include_router(
+    threshold_router
 )
 
 # ----------------------------------------
