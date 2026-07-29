@@ -29,10 +29,22 @@ class ThresholdAnalyzer:
         },
 
         "financialCollectionRate": {
-            "current_value": 89,
-            "trend": "Stable",
-            "recommended_range": "85-95",
-            "industry_standard": 85
+
+        "current_value": 89,
+
+        "previous_value": 93,
+
+        "trend": "Declining",
+
+        "trend_period": "Last 6 Months",
+
+        "recommended_range": "85-95",
+
+        "industry_standard": 85,
+
+        "possible_reason": "Increase in overdue payments",
+
+        "business_impact": "Reduced cash flow and delayed maintenance budgets"
         },
 
         "activeUsers": {
@@ -111,6 +123,22 @@ class ThresholdAnalyzer:
 
                 "industry_standard": static_data.get(
                     "industry_standard"
+                ),
+
+                "previous_value": static_data.get(
+                    "previous_value"
+                ),
+
+                "trend_period": static_data.get(
+                    "trend_period"
+                ),
+
+                "possible_reason": static_data.get(
+                    "possible_reason"
+                ),
+
+                "business_impact": static_data.get(
+                    "business_impact"
                 )
 
             })

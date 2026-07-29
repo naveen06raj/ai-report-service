@@ -6,6 +6,10 @@ from services.threshold.threshold_advisor_service import (
 )
 from services.threshold.auto_tune_service import AutoTuneService
 
+from services.threshold.explain_service import (
+    ThresholdExplainService
+)
+
 router = APIRouter(
     prefix="/threshold",
     tags=["AI Threshold Advisor"]
@@ -15,6 +19,11 @@ router = APIRouter(
 class ThresholdRequest(BaseModel):
     property: str
     period: str = "monthly"
+
+class ThresholdExplainRequest(BaseModel):
+    property: str
+    period: str = "monthly"
+    config_key: str
 
 
 @router.post("/advisor")
@@ -60,6 +69,36 @@ async def auto_tune(
             authorization=authorization,
             property_id=request.property,
             period=request.period
+        )
+
+        return {
+            "status": True,
+            "message": "Success",
+            "data": result
+        }
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@router.post("/explain")
+async def threshold_explain(
+    request: ThresholdExplainRequest,
+    authorization: str = Header(...)
+):
+
+    try:
+
+        service = ThresholdExplainService()
+
+        result = service.generate(
+            authorization=authorization,
+            property_id=request.property,
+            period=request.period,
+            config_key=request.config_key
         )
 
         return {

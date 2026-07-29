@@ -431,3 +431,15 @@ class PromptBuilder:
                 "analytics_data": analytics_data
             }
         )
+
+    def build_threshold_explain_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file="prompts/threshold/threshold_exp.txt",
+            placeholders={
+                "analytics_data": analytics_data
+            }
+        )
