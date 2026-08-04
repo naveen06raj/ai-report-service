@@ -35,6 +35,10 @@ from agents.financial_agent import (
     financial_node
 )
 
+from agents.key_agent import (
+    key_collection_node
+)
+
 
 # --------------------------------------------------
 # Route Based On Current Page Module
@@ -60,13 +64,16 @@ def route_module(
     
     elif current_module == "financial":
         return "financial"
+    
+    elif current_module == "key_collection":
+        return "key_collection"
 
     elif current_module == "defect":
         return "defect"
 
     elif current_module == "security":
         return "security"
-
+    
     return "fallback"
 
 
@@ -115,6 +122,11 @@ workflow.add_node(
 )
 
 workflow.add_node(
+    "key_collection",
+    key_collection_node
+)
+
+workflow.add_node(
     "defect",
     defect_node
 )
@@ -149,6 +161,7 @@ workflow.add_conditional_edges(
         "facilities": "facilities",
         "visitor": "visitor",
         "financial": "financial",
+        "key_collection": "key_collection",
         "defect": "defect",
         "security": "security",
         "fallback": "fallback"
@@ -163,6 +176,7 @@ workflow.add_edge("feedback", END)
 workflow.add_edge("facilities", END)
 workflow.add_edge("visitor", END)
 workflow.add_edge("financial", END)
+workflow.add_edge("key_collection", END)
 workflow.add_edge("defect", END)
 workflow.add_edge("security", END)
 workflow.add_edge("fallback", END)

@@ -251,6 +251,28 @@ class PromptBuilder:
                     question
             }
         )
+    
+        # --------------------------------------------------
+    # Key Collection Chat Prompt
+    # --------------------------------------------------
+
+    def build_key_collection_chat_prompt(
+        self,
+        report_data: dict,
+        question: str
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/chat/key_collection_chat.txt",
+            placeholders={
+                "report_data":
+                    report_data,
+
+                "question":
+                    question
+            }
+        )
 
     # --------------------------------------------------
     # Feedback Anomaly Prompt
@@ -408,6 +430,24 @@ class PromptBuilder:
         return self.build_prompt(
             prompt_file=
             "prompts/management_report/financial_management_report.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
+        # --------------------------------------------------
+    # Key Collection Management Report
+    # --------------------------------------------------
+
+    def build_key_collection_management_report_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/management_report/key_collection_management_report.txt",
             placeholders={
                 "analytics_data":
                     analytics_data
