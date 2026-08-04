@@ -21,6 +21,10 @@ from api.recommendation_routes import (
     router as recommendation_router
 )
 
+from api.workflow_routes import (
+    router as workflow_router
+)
+
 from api.threshold_routes import (
     router as threshold_router
 )
@@ -70,6 +74,10 @@ app.include_router(
 )
 
 app.include_router(
+    workflow_router
+)
+
+app.include_router(
     threshold_router
 )
 
@@ -85,6 +93,7 @@ async def root():
         "message": "AI Report Service is running"
     }
 
+
 # ----------------------------------------
 # Health Check
 # ----------------------------------------
@@ -96,6 +105,7 @@ async def health():
         "status": "healthy"
     }
 
+
 # ----------------------------------------
 # Startup Event
 # ----------------------------------------
@@ -106,6 +116,7 @@ async def startup_event():
     print("=" * 60)
     print("AI REPORT SERVICE STARTED")
     print("=" * 60)
+
 
 # ----------------------------------------
 # Shutdown Event

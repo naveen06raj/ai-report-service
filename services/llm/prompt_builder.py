@@ -473,6 +473,24 @@ class PromptBuilder:
             }
         )
 
+        # --------------------------------------------------
+    # Key Collection Workflow
+    # --------------------------------------------------
+
+    def build_key_collection_workflow_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/workflow/key_collection_workflow.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+
 
 
     # --------------------------------------------------
