@@ -52,6 +52,18 @@ from services.anomaly.financial_anomaly_service import (
     FinancialAnomalyService
 )
 
+from services.reports.key_collection_report import (
+    KeyCollectionReportService
+)
+
+from services.analytics.key_collection_analyzer import (
+    KeyCollectionAnalyzer
+)
+
+from services.anomaly.key_collection_anomaly_service import (
+    KeyCollectionAnomalyService
+)
+
 router = APIRouter(
     prefix="/anomaly",
     tags=["AI Anomaly Detection"]
@@ -388,6 +400,129 @@ async def financial_overview_anomaly(
 
         anomalies = (
             FinancialAnomalyService()
+            .detect(
+                analytics
+            )
+        )
+
+        print("=" * 80)
+        print("ANOMALIES GENERATED")
+        print("=" * 80)
+
+        return {
+
+            "status": True,
+
+            "login_id": login_id,
+
+            "anomalies": anomalies
+
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as ex:
+
+        print("=" * 80)
+        print("GENERAL ERROR")
+        print("=" * 80)
+
+        import traceback
+        traceback.print_exc()
+
+        print("=" * 80)
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )
+
+# ==================================================
+# Key Collection
+# ==================================================
+
+@router.post("/key-collection")
+async def key_collection_anomaly(
+    request: dict,
+    authorization: str = Header(None)
+):
+
+    try:
+
+        print("=" * 80)
+        print("KEY COLLECTION ANOMALY API STARTED")
+        print("=" * 80)
+
+        if not authorization:
+
+            raise HTTPException(
+                status_code=401,
+                detail="Authorization header missing"
+            )
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        if not login_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="login_id is required"
+            )
+
+        # ----------------------------------
+        # Key Collection API
+        # ----------------------------------
+
+        report_data = (
+            KeyCollectionReportService()
+            .get_report(
+                login_id=login_id,
+                authorization=authorization
+            )
+        )
+
+        print("=" * 80)
+        print("REPORT RECEIVED")
+        print("=" * 80)
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
+
+        analytics = (
+            KeyCollectionAnalyzer()
+            .analyze(
+                report_data
+            )
+        )
+
+        print("=" * 80)
+        print("ANALYTICS CREATED")
+        print("=" * 80)
+
+        import json
+
+        print(
+            json.dumps(
+                analytics,
+                indent=4
+            )
+        )
+
+        # ----------------------------------
+        # AI Anomaly Detection
+        # ----------------------------------
+
+        anomalies = (
+            KeyCollectionAnomalyService()
             .detect(
                 analytics
             )

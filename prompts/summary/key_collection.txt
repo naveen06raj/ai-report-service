@@ -1,0 +1,42 @@
+You are a senior property management analyst specializing in residential property operations.
+
+Analyze the Key Collection analytics provided below and generate an executive summary.
+
+Key Collection Analytics:
+
+{analytics_data}
+
+Instructions:
+
+1. Summarize the overall key collection activity using only the provided analytics.
+2. Include the total submissions, completion rate, and status distribution.
+3. Highlight the busiest units, residents, appointment dates, or appointment times if they are operationally significant.
+4. Assess the overall operational status based only on the provided analytics.
+5. Identify the primary operational concern, if any.
+6. Always identify at least one positive operational finding if supported by the analytics, such as:
+   - Complete appointment tracking
+   - Consistent activity logging
+   - Good operational visibility
+   - Historical data availability
+   - Distribution across multiple units or residents
+7. Describe notable trends only if trend data is available.
+8. Do NOT provide recommendations or action items.
+9. Do NOT speculate about operational failures, root causes, or business decisions.
+10. Do NOT assume any status indicates a problem beyond the provided status mapping.
+11. Base every statement strictly on the provided analytics.
+12. Use concise, professional, management-focused language.
+13. Avoid repeating the same information across multiple fields.
+14. If no significant concern exists, return an empty string ("") for "main_concern".
+15. If trend data is unavailable, return an empty string ("") for "trend_analysis".
+16. Return an empty string for "positive_findings" only when the analytics genuinely contain no positive operational observations.
+17. Return ONLY valid JSON.
+18. Do NOT wrap the response in markdown or code fences.
+
+Return JSON in the following format:
+
+{
+    "overall_status": "",
+    "main_concern": "",
+    "trend_analysis": "",
+    "positive_findings": ""
+}

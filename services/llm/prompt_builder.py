@@ -149,6 +149,22 @@ class PromptBuilder:
                     analytics_data
             }
         )
+    
+    def build_key_collection_summary_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/summary/key_collection.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
+            # --------------------------------------------------
+    # Facility Chat Promp
     # --------------------------------------------------
     # Feedback Chat Prompt
     # --------------------------------------------------
@@ -309,7 +325,23 @@ class PromptBuilder:
             }
         )
 
+        # --------------------------------------------------
+    # Key Collection Anomaly Prompt
+    # --------------------------------------------------
 
+    def build_key_collection_anomaly_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            prompt_file=
+            "prompts/anomaly/key_collection_anomaly.txt",
+            placeholders={
+                "analytics_data":
+                    analytics_data
+            }
+        )
     # --------------------------------------------------
     # Feedback Management Report Prompt
     # --------------------------------------------------
