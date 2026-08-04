@@ -17,6 +17,10 @@ from api.management_report_routes import (
     router as management_report_router
 )
 
+from api.recommendation_routes import (
+    router as recommendation_router
+)
+
 from api.threshold_routes import (
     router as threshold_router
 )
@@ -59,6 +63,10 @@ app.include_router(
 
 app.include_router(
     management_report_router
+)
+
+app.include_router(
+    recommendation_router
 )
 
 app.include_router(
