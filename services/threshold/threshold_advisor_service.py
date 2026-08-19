@@ -21,7 +21,8 @@ class ThresholdAdvisorService:
     def generate_advisor(
         self,
         authorization: str,
-        property_id: str = None,
+        login_id: int,
+        property_id: int,
         period: str = "monthly"
     ) -> dict:
 
@@ -34,7 +35,10 @@ class ThresholdAdvisorService:
             threshold_response = (
                 ThresholdClient()
                 .get_threshold_configs(
-                    authorization=authorization
+                    authorization=authorization,
+                    login_id=login_id,
+                    property_id=property_id,
+                    period=period
                 )
             )
 

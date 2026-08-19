@@ -1,10 +1,24 @@
 import logging
 
-from services.reports.threshold_client import ThresholdClient
-from services.analytics.threshold_analyzer import ThresholdAnalyzer
-from services.llm.prompt_builder import PromptBuilder
-from services.llm.gemini_client import generate
-from services.llm.llm_response_parser import LLMResponseParser
+from services.reports.threshold_client import (
+    ThresholdClient
+)
+
+from services.analytics.threshold_analyzer import (
+    ThresholdAnalyzer
+)
+
+from services.llm.prompt_builder import (
+    PromptBuilder
+)
+
+from services.llm.gemini_client import (
+    generate
+)
+
+from services.llm.llm_response_parser import (
+    LLMResponseParser
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,14 +26,18 @@ logger = logging.getLogger(__name__)
 class ThresholdExplainService:
 
     def __init__(self):
+
         self.client = ThresholdClient()
+
         self.analyzer = ThresholdAnalyzer()
+
         self.prompt_builder = PromptBuilder()
 
     def generate(
         self,
         authorization: str,
-        property_id: str,
+        login_id: int,
+        property_id: int,
         period: str,
         config_key: str
     ) -> dict:
@@ -35,16 +53,23 @@ class ThresholdExplainService:
             # Fetch Threshold Configurations
             # --------------------------------------------------
 
-            threshold_response = self.client.get_threshold_configs(
-                authorization=authorization
+            threshold_response = (
+                self.client.get_threshold_configs(
+                    authorization=authorization,
+                    login_id=login_id,
+                    property_id=property_id,
+                    period=period
+                )
             )
 
             # --------------------------------------------------
             # Analyze Data
             # --------------------------------------------------
 
-            analytics = self.analyzer.analyze(
-                threshold_response
+            analytics = (
+                self.analyzer.analyze(
+                    threshold_response
+                )
             )
 
             # --------------------------------------------------
@@ -61,6 +86,7 @@ class ThresholdExplainService:
             )
 
             if metric is None:
+
                 raise ValueError(
                     f"Threshold '{config_key}' not found."
                 )
@@ -69,15 +95,21 @@ class ThresholdExplainService:
             # Add Request Context
             # --------------------------------------------------
 
+            metric["login_id"] = login_id
+
             metric["property_id"] = property_id
+
             metric["period"] = period
 
             # --------------------------------------------------
             # Build Prompt
             # --------------------------------------------------
 
-            prompt = self.prompt_builder.build_threshold_explain_prompt(
-                metric
+            prompt = (
+                self.prompt_builder
+                .build_threshold_explain_prompt(
+                    metric
+                )
             )
 
             print("=" * 80)
@@ -87,10 +119,12 @@ class ThresholdExplainService:
             print("=" * 80)
 
             # --------------------------------------------------
-            # Generate AI Response
+            # Gemini Response
             # --------------------------------------------------
 
-            response = generate(prompt)
+            response = generate(
+                prompt
+            )
 
             print("=" * 80)
             print("RAW GEMINI RESPONSE")

@@ -4,7 +4,10 @@ from pydantic import BaseModel
 from services.threshold.threshold_advisor_service import (
     ThresholdAdvisorService
 )
-from services.threshold.auto_tune_service import AutoTuneService
+
+from services.threshold.auto_tune_service import (
+    AutoTuneService
+)
 
 from services.threshold.explain_service import (
     ThresholdExplainService
@@ -17,11 +20,14 @@ router = APIRouter(
 
 
 class ThresholdRequest(BaseModel):
-    property: str
+    login_id: int
+    property: int
     period: str = "monthly"
 
+
 class ThresholdExplainRequest(BaseModel):
-    property: str
+    login_id: int
+    property: int
     period: str = "monthly"
     config_key: str
 
@@ -38,6 +44,7 @@ async def threshold_advisor(
 
         result = service.generate_advisor(
             authorization=authorization,
+            login_id=request.login_id,
             property_id=request.property,
             period=request.period
         )
@@ -54,6 +61,7 @@ async def threshold_advisor(
             status_code=500,
             detail=str(e)
         )
+
 
 @router.post("/auto-tune")
 async def auto_tune(
@@ -67,6 +75,7 @@ async def auto_tune(
 
         result = service.generate_auto_tune(
             authorization=authorization,
+            login_id=request.login_id,
             property_id=request.property,
             period=request.period
         )
@@ -84,6 +93,7 @@ async def auto_tune(
             detail=str(e)
         )
 
+
 @router.post("/explain")
 async def threshold_explain(
     request: ThresholdExplainRequest,
@@ -96,6 +106,7 @@ async def threshold_explain(
 
         result = service.generate(
             authorization=authorization,
+            login_id=request.login_id,
             property_id=request.property,
             period=request.period,
             config_key=request.config_key

@@ -21,7 +21,8 @@ class AutoTuneService:
     def generate_auto_tune(
         self,
         authorization: str,
-        property_id: str = None,
+        login_id: int,
+        property_id: int,
         period: str = "monthly"
     ) -> dict:
 
@@ -34,7 +35,10 @@ class AutoTuneService:
             threshold_response = (
                 ThresholdClient()
                 .get_threshold_configs(
-                    authorization=authorization
+                    authorization=authorization,
+                    login_id=login_id,
+                    property_id=property_id,
+                    period=period
                 )
             )
 
@@ -70,7 +74,9 @@ class AutoTuneService:
             # Generate AI Response
             # ----------------------------------
 
-            response = generate(prompt)
+            response = generate(
+                prompt
+            )
 
             print("=" * 80)
             print("AUTO TUNE RESPONSE")

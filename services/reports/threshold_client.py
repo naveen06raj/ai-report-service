@@ -12,7 +12,10 @@ class ThresholdClient:
 
     def get_threshold_configs(
         self,
-        authorization: str
+        authorization: str,
+        login_id: int,
+        property_id: int,
+        period: str
     ) -> dict:
 
         try:
@@ -21,11 +24,23 @@ class ThresholdClient:
                 "Authorization": authorization
             }
 
+            params = {
+                "login_id": login_id,
+                "property": int(property_id),
+                "period": period
+            }
+
             response = requests.get(
                 self.THRESHOLD_CONFIG_URL,
                 headers=headers,
+                params=params,
                 timeout=60
             )
+
+            print("=" * 80)
+            print("THRESHOLD API URL")
+            print(response.url)
+            print("=" * 80)
 
             response.raise_for_status()
 
