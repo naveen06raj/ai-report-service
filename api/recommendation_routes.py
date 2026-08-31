@@ -16,6 +16,7 @@ from services.recommendation.key_collection_recommendation_service import (
     KeyCollectionRecommendationService
 )
 
+
 router = APIRouter(
     prefix="/recommendation",
     tags=["AI Recommendation"]
@@ -34,6 +35,10 @@ async def key_collection_recommendation(
 
     try:
 
+        # ----------------------------------
+        # Authorization Validation
+        # ----------------------------------
+
         if not authorization:
 
             raise HTTPException(
@@ -41,9 +46,21 @@ async def key_collection_recommendation(
                 detail="Authorization header missing"
             )
 
+        # ----------------------------------
+        # Get Request Parameters
+        # ----------------------------------
+
         login_id = request.get(
             "login_id"
         )
+
+        property_id = request.get(
+            "property_id"
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
 
@@ -51,6 +68,54 @@ async def key_collection_recommendation(
                 status_code=400,
                 detail="login_id is required"
             )
+
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        # ----------------------------------
+        # Convert IDs to Integer
+        # ----------------------------------
+
+        try:
+
+            login_id = int(
+                login_id
+            )
+
+            property_id = int(
+                property_id
+            )
+
+        except (TypeError, ValueError):
+
+            raise HTTPException(
+                status_code=400,
+                detail="login_id and property_id must be integers"
+            )
+
+        # ----------------------------------
+        # Debug
+        # ----------------------------------
+
+        print("=" * 80)
+        print("KEY COLLECTION RECOMMENDATION")
+        print("=" * 80)
+
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
+
+        print("=" * 80)
 
         # ----------------------------------
         # Get Report
@@ -60,6 +125,7 @@ async def key_collection_recommendation(
             KeyCollectionReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -98,17 +164,24 @@ async def key_collection_recommendation(
         print("KEY COLLECTION RECOMMENDATION GENERATED")
         print("=" * 80)
 
+        # ----------------------------------
+        # Response
+        # ----------------------------------
+
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "recommendation": recommendation
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
@@ -118,6 +191,7 @@ async def key_collection_recommendation(
         print("=" * 80)
 
         import traceback
+
         traceback.print_exc()
 
         print("=" * 80)

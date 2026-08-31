@@ -31,6 +31,10 @@ def visitor_management_node(state):
             "login_id"
         )
 
+        property_id = state.get(
+            "property_id"
+        )
+
         question = state.get(
             "question"
         )
@@ -40,6 +44,34 @@ def visitor_management_node(state):
         )
 
         # ----------------------------------
+        # Validation
+        # ----------------------------------
+
+        if not login_id:
+
+            raise Exception(
+                "login_id is required."
+            )
+
+        if not property_id:
+
+            raise Exception(
+                "property_id is required."
+            )
+
+        if not authorization:
+
+            raise Exception(
+                "Authorization token is required."
+            )
+
+        if not question:
+
+            raise Exception(
+                "Question is required."
+            )
+
+        # ----------------------------------
         # Get Visitor Management Report
         # ----------------------------------
 
@@ -47,6 +79,7 @@ def visitor_management_node(state):
             VisitorManagementReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -63,6 +96,12 @@ def visitor_management_node(state):
             )
         )
 
+        print("=" * 80)
+        print("VISITOR MANAGEMENT CHAT PROMPT")
+        print("=" * 80)
+        print(prompt)
+        print("=" * 80)
+
         # ----------------------------------
         # Gemini Response
         # ----------------------------------
@@ -70,6 +109,12 @@ def visitor_management_node(state):
         llm_response = generate(
             prompt
         )
+
+        print("=" * 80)
+        print("VISITOR MANAGEMENT GEMINI RESPONSE")
+        print("=" * 80)
+        print(llm_response)
+        print("=" * 80)
 
         # ----------------------------------
         # Parse Response
@@ -82,6 +127,12 @@ def visitor_management_node(state):
             )
         )
 
+        print("=" * 80)
+        print("VISITOR MANAGEMENT ANSWER")
+        print("=" * 80)
+        print(answer)
+        print("=" * 80)
+
         state["answer"] = answer
 
         return state
@@ -93,7 +144,8 @@ def visitor_management_node(state):
         )
 
         state["answer"] = (
-            f"Unable to process visitor management question: {str(ex)}"
+            f"Unable to process visitor management question: "
+            f"{str(ex)}"
         )
 
         return state

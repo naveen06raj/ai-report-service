@@ -7,20 +7,20 @@ logger = logging.getLogger(__name__)
 class FinancialReportClient:
 
     PAYMENT_OVERVIEW_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/paymentoverview"
+        "https://newaws.panzerplayground.com/api/ai/paymentoverview"
     )
 
     INVOICE_SEARCH_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/report_search"
+        "https://newaws.panzerplayground.com/api/ai/report_search"
     )
 
     BATCH_LIST_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/batches"
+        "https://newaws.panzerplayground.com/api/ai/batches"
     )
 
     INVOICE_VIEW_URL = (
-    "https://newaws.panzerplayground.com/api/ops/v4/invoiceview"
-)
+        "https://newaws.panzerplayground.com/api/ai/invoiceview"
+    )
 
     def _post(
         self,
@@ -52,9 +52,14 @@ class FinancialReportClient:
 
         return result
 
+    # --------------------------------------------------
+    # Financial Report
+    # --------------------------------------------------
+
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -77,7 +82,8 @@ class FinancialReportClient:
                 url=self.PAYMENT_OVERVIEW_URL,
                 headers=headers,
                 payload={
-                    "login_id": login_id
+                    "login_id": login_id,
+                    "property_id": property_id
                 }
             )
 
@@ -91,6 +97,7 @@ class FinancialReportClient:
                 headers=headers,
                 payload={
                     "login_id": login_id,
+                    "property_id": property_id,
                     "batch_file_no": "",
                     "invoice_no": "",
                     "building": "",
@@ -110,7 +117,8 @@ class FinancialReportClient:
                 url=self.BATCH_LIST_URL,
                 headers=headers,
                 payload={
-                    "login_id": login_id
+                    "login_id": login_id,
+                    "property_id": property_id
                 }
             )
 
@@ -123,7 +131,17 @@ class FinancialReportClient:
             print("=" * 80)
 
             print(
-                "Payment Overview :",
+                "Login ID        :",
+                login_id
+            )
+
+            print(
+                "Property ID     :",
+                property_id
+            )
+
+            print(
+                "Payment Overview:",
                 payment_overview.get("response")
             )
 
@@ -138,7 +156,7 @@ class FinancialReportClient:
             )
 
             print(
-                "Batch Records :",
+                "Batch Records   :",
                 len(
                     batch_list.get(
                         "data",
@@ -182,13 +200,14 @@ class FinancialReportClient:
                 f"Financial Report Client Error: {str(ex)}"
             )
 
-        # --------------------------------------------------
+    # --------------------------------------------------
     # Invoice View
     # --------------------------------------------------
 
     def get_invoice_view(
         self,
         login_id: int,
+        property_id: int,
         invoice_id: int,
         authorization: str
     ) -> dict:
@@ -209,6 +228,7 @@ class FinancialReportClient:
                 headers=headers,
                 payload={
                     "login_id": login_id,
+                    "property_id": property_id,
                     "id": invoice_id
                 }
             )
@@ -218,7 +238,22 @@ class FinancialReportClient:
             print("=" * 80)
 
             print(
-                "Invoice Response :",
+                "Login ID      :",
+                login_id
+            )
+
+            print(
+                "Property ID   :",
+                property_id
+            )
+
+            print(
+                "Invoice ID    :",
+                invoice_id
+            )
+
+            print(
+                "Invoice Response:",
                 invoice_view.get("response")
             )
 

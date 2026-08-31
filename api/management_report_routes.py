@@ -4,7 +4,6 @@ from fastapi import (
     Header
 )
 
-import requests
 from services.reports.feedback_report import (
     FeedbackReportService
 )
@@ -65,13 +64,6 @@ from services.management_report.key_collection_management_report_service import 
     KeyCollectionManagementReportService
 )
 
-# --------------------------------------------------
-# Backend Report API
-# --------------------------------------------------
-
-BACKEND_REPORT_URL = (
-    "https://aereanew.panzerplayground.com/api/reports/properties"
-)
 
 # --------------------------------------------------
 # Router
@@ -82,6 +74,51 @@ router = APIRouter(
     tags=["AI Management Report"]
 )
 
+
+# ==================================================
+# Helper Function
+# ==================================================
+
+def get_ids(request: dict):
+
+    login_id = request.get(
+        "login_id"
+    )
+
+    property_id = request.get(
+        "property_id"
+    )
+
+    if not login_id:
+        raise HTTPException(
+            status_code=400,
+            detail="login_id is required"
+        )
+
+    if not property_id:
+        raise HTTPException(
+            status_code=400,
+            detail="property_id is required"
+        )
+
+    try:
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
+    except (TypeError, ValueError):
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
+
+    return login_id, property_id
+
+
+# ==================================================
+# Resident Feedback
+# ==================================================
 
 @router.post("/resident-feedback")
 async def resident_feedback_management_report(
@@ -98,35 +135,29 @@ async def resident_feedback_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_ids(
+            request
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
         # -----------------------------------------
-        # Call Feedback APIs
+        # Feedback APIs
         # -----------------------------------------
 
         report_data = (
             FeedbackReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("FEEDBACK REPORT RECEIVED")
         print("=" * 80)
 
         # -----------------------------------------
-        # Analytics Layer
+        # Analytics
         # -----------------------------------------
 
         analytics = (
@@ -137,7 +168,7 @@ async def resident_feedback_management_report(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("FEEDBACK ANALYTICS CREATED")
         print("=" * 80)
 
         # -----------------------------------------
@@ -152,7 +183,7 @@ async def resident_feedback_management_report(
         )
 
         print("=" * 80)
-        print("MANAGEMENT REPORT GENERATED")
+        print("FEEDBACK MANAGEMENT REPORT GENERATED")
         print("=" * 80)
 
         return {
@@ -161,28 +192,30 @@ async def resident_feedback_management_report(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "report": report
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
+
+
+# ==================================================
+# Facility Booking
+# ==================================================
 
 @router.post("/facility-booking")
 async def facility_booking_management_report(
@@ -199,35 +232,29 @@ async def facility_booking_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_ids(
+            request
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
         # -----------------------------------------
-        # Call Facility Booking APIs
+        # Facility Booking APIs
         # -----------------------------------------
 
         report_data = (
             FacilityBookingReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("FACILITY REPORT RECEIVED")
         print("=" * 80)
 
         # -----------------------------------------
-        # Analytics Layer
+        # Analytics
         # -----------------------------------------
 
         analytics = (
@@ -238,7 +265,7 @@ async def facility_booking_management_report(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("FACILITY ANALYTICS CREATED")
         print("=" * 80)
 
         # -----------------------------------------
@@ -253,7 +280,7 @@ async def facility_booking_management_report(
         )
 
         print("=" * 80)
-        print("MANAGEMENT REPORT GENERATED")
+        print("FACILITY MANAGEMENT REPORT GENERATED")
         print("=" * 80)
 
         return {
@@ -262,27 +289,30 @@ async def facility_booking_management_report(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "report": report
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
         traceback.print_exc()
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
+
+
+# ==================================================
+# Visitor Management
+# ==================================================
 
 @router.post("/visitor-management")
 async def visitor_management_report(
@@ -293,33 +323,31 @@ async def visitor_management_report(
     try:
 
         if not authorization:
+
             raise HTTPException(
                 status_code=401,
                 detail="Authorization header missing"
             )
 
-        login_id = request.get("login_id")
-
-        if not login_id:
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
+        login_id, property_id = get_ids(
+            request
+        )
 
         # -----------------------------------------
-        # Call Visitor Management APIs
+        # Visitor Management APIs
         # -----------------------------------------
 
         report_data = (
             VisitorReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("VISITOR REPORT RECEIVED")
         print("=" * 80)
 
         # -----------------------------------------
@@ -334,7 +362,7 @@ async def visitor_management_report(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("VISITOR ANALYTICS CREATED")
         print("=" * 80)
 
         # -----------------------------------------
@@ -349,7 +377,7 @@ async def visitor_management_report(
         )
 
         print("=" * 80)
-        print("MANAGEMENT REPORT GENERATED")
+        print("VISITOR MANAGEMENT REPORT GENERATED")
         print("=" * 80)
 
         return {
@@ -358,31 +386,29 @@ async def visitor_management_report(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "report": report
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
 
+
 # ==================================================
-# Financial Overview Management Report
+# Financial Overview
 # ==================================================
 
 @router.post("/financial-overview")
@@ -400,16 +426,23 @@ async def financial_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_ids(
+            request
         )
 
-        if not login_id:
+        print("=" * 80)
+        print("FINANCIAL MANAGEMENT REPORT STARTED")
+        print("=" * 80)
 
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
 
         # -----------------------------------------
         # Financial APIs
@@ -419,6 +452,7 @@ async def financial_management_report(
             FinancialReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -463,31 +497,29 @@ async def financial_management_report(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "report": report
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
 
+
 # ==================================================
-# Key Collection Management Report
+# Key Collection
 # ==================================================
 
 @router.post("/key-collection")
@@ -505,16 +537,23 @@ async def key_collection_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_ids(
+            request
         )
 
-        if not login_id:
+        print("=" * 80)
+        print("KEY COLLECTION MANAGEMENT REPORT STARTED")
+        print("=" * 80)
 
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
 
         # -----------------------------------------
         # Key Collection API
@@ -524,6 +563,7 @@ async def key_collection_management_report(
             KeyCollectionReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -568,23 +608,20 @@ async def key_collection_management_report(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "report": report
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,

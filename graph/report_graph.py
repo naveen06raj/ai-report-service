@@ -18,7 +18,295 @@ from agents.facilities_agent import (
 from agents.defect_agent import (
     defect_node
 )
+from langgraph.graph import (
+    StateGraph,
+    END
+)
 
+from graph.state import (
+    ReportState
+)
+
+from agents.feedback_agent import (
+    feedback_node
+)
+
+from agents.facilities_agent import (
+    facilities_node
+)
+
+from agents.defect_agent import (
+    defect_node
+)
+
+from agents.security_agent import (
+    security_node
+)
+
+from agents.fallback_agent import (
+    fallback_node
+)
+
+from agents.visitor_management_agent import (
+    visitor_management_node
+)
+
+from agents.financial_agent import (
+    financial_node
+)
+
+from agents.key_agent import (
+    key_collection_node
+)
+
+
+# --------------------------------------------------
+# Route Based On Current Page Module
+# --------------------------------------------------
+
+def route_module(
+    state: ReportState
+):
+
+    current_module = state.get(
+        "current_module",
+        ""
+    )
+
+    if current_module == "feedback":
+        return "feedback"
+
+    elif current_module == "facilities":
+        return "facilities"
+
+    elif current_module == "visitor":
+        return "visitor"
+
+    elif current_module == "financial":
+        return "financial"
+
+    elif current_module == "key_collection":
+        return "key_collection"
+
+    elif current_module == "defect":
+        return "defect"
+
+    elif current_module == "security":
+        return "security"
+
+    return "fallback"
+
+
+# --------------------------------------------------
+# Start Node
+# --------------------------------------------------
+
+def start_node(
+    state: ReportState
+):
+
+    return state
+
+
+# --------------------------------------------------
+# Graph Definition
+# --------------------------------------------------
+
+workflow = StateGraph(
+    ReportState
+)
+
+
+# --------------------------------------------------
+# Nodes
+# --------------------------------------------------
+
+workflow.add_node(
+    "start",
+    start_node
+)
+
+workflow.add_node(
+    "feedback",
+    feedback_node
+)
+
+workflow.add_node(
+    "facilities",
+    facilities_node
+)
+
+workflow.add_node(
+    "visitor",
+    visitor_management_node
+)
+
+workflow.add_node(
+    "financial",
+    financial_node
+)
+
+workflow.add_node(
+    "key_collection",
+    key_collection_node
+)
+
+workflow.add_node(
+    "defect",
+    defect_node
+)
+
+workflow.add_node(
+    "security",
+    security_node
+)
+
+workflow.add_node(
+    "fallback",
+    fallback_node
+)
+
+
+# --------------------------------------------------
+# Entry Point
+# --------------------------------------------------
+
+workflow.set_entry_point(
+    "start"
+)
+
+
+# --------------------------------------------------
+# Conditional Routing
+# --------------------------------------------------
+
+workflow.add_conditional_edges(
+    "start",
+    route_module,
+    {
+        "feedback": "feedback",
+        "facilities": "facilities",
+        "visitor": "visitor",
+        "financial": "financial",
+        "key_collection": "key_collection",
+        "defect": "defect",
+        "security": "security",
+        "fallback": "fallback"
+    }
+)
+
+
+# --------------------------------------------------
+# End Nodes
+# --------------------------------------------------
+
+workflow.add_edge(
+    "feedback",
+    END
+)
+
+workflow.add_edge(
+    "facilities",
+    END
+)
+
+workflow.add_edge(
+    "visitor",
+    END
+)
+
+workflow.add_edge(
+    "financial",
+    END
+)
+
+workflow.add_edge(
+    "key_collection",
+    END
+)
+
+workflow.add_edge(
+    "defect",
+    END
+)
+
+workflow.add_edge(
+    "security",
+    END
+)
+
+workflow.add_edge(
+    "fallback",
+    END
+)
+
+
+# --------------------------------------------------
+# Compile
+# --------------------------------------------------
+
+graph = workflow.compile()
+
+
+# --------------------------------------------------
+# Public Function
+# --------------------------------------------------
+
+def run_report_graph(
+    question: str,
+    current_module: str,
+    authorization: str,
+    login_id: int = None,
+    property_id: int = None,
+    period: str = None
+) -> str:
+
+    state = {
+
+        # ----------------------------------
+        # Login
+        # ----------------------------------
+
+        "login_id": login_id,
+
+        # ----------------------------------
+        # Property / Period
+        # ----------------------------------
+
+        "property_id": property_id,
+
+        "period": period,
+
+        # ----------------------------------
+        # Common
+        # ----------------------------------
+
+        "question": question,
+
+        "current_module": current_module,
+
+        "authorization": authorization,
+
+        "answer": ""
+
+    }
+
+    # ----------------------------------
+    # Execute Graph
+    # ----------------------------------
+
+    result = graph.invoke(
+        state
+    )
+
+    # ----------------------------------
+    # Return Answer
+    # ----------------------------------
+
+    return result.get(
+        "answer",
+        "No response generated."
+    )
 from agents.security_agent import (
     security_node
 )

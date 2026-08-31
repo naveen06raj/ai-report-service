@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Header
+)
+
 from pydantic import BaseModel
 
 from services.threshold.threshold_advisor_service import (
@@ -13,24 +18,40 @@ from services.threshold.explain_service import (
     ThresholdExplainService
 )
 
+
 router = APIRouter(
     prefix="/threshold",
     tags=["AI Threshold Advisor"]
 )
 
 
+# ==================================================
+# Request Models
+# ==================================================
+
 class ThresholdRequest(BaseModel):
+
     login_id: int
-    property: int
+
+    property_id: int
+
     period: str = "monthly"
 
 
 class ThresholdExplainRequest(BaseModel):
+
     login_id: int
-    property: int
+
+    property_id: int
+
     period: str = "monthly"
+
     config_key: str
 
+
+# ==================================================
+# Threshold Advisor
+# ==================================================
 
 @router.post("/advisor")
 async def threshold_advisor(
@@ -45,23 +66,37 @@ async def threshold_advisor(
         result = service.generate_advisor(
             authorization=authorization,
             login_id=request.login_id,
-            property_id=request.property,
+            property_id=request.property_id,
             period=request.period
         )
 
         return {
+
             "status": True,
+
             "message": "Success",
+
+            "login_id": request.login_id,
+
+            "property_id": request.property_id,
+
+            "period": request.period,
+
             "data": result
+
         }
 
-    except Exception as e:
+    except Exception as ex:
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=str(ex)
         )
 
+
+# ==================================================
+# Auto Tune
+# ==================================================
 
 @router.post("/auto-tune")
 async def auto_tune(
@@ -76,23 +111,37 @@ async def auto_tune(
         result = service.generate_auto_tune(
             authorization=authorization,
             login_id=request.login_id,
-            property_id=request.property,
+            property_id=request.property_id,
             period=request.period
         )
 
         return {
+
             "status": True,
+
             "message": "Success",
+
+            "login_id": request.login_id,
+
+            "property_id": request.property_id,
+
+            "period": request.period,
+
             "data": result
+
         }
 
-    except Exception as e:
+    except Exception as ex:
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=str(ex)
         )
 
+
+# ==================================================
+# Threshold Explain
+# ==================================================
 
 @router.post("/explain")
 async def threshold_explain(
@@ -107,20 +156,32 @@ async def threshold_explain(
         result = service.generate(
             authorization=authorization,
             login_id=request.login_id,
-            property_id=request.property,
+            property_id=request.property_id,
             period=request.period,
             config_key=request.config_key
         )
 
         return {
+
             "status": True,
+
             "message": "Success",
+
+            "login_id": request.login_id,
+
+            "property_id": request.property_id,
+
+            "period": request.period,
+
+            "config_key": request.config_key,
+
             "data": result
+
         }
 
-    except Exception as e:
+    except Exception as ex:
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=str(ex)
         )

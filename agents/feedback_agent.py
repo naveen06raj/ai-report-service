@@ -31,6 +31,10 @@ def feedback_node(state):
             "login_id"
         )
 
+        property_id = state.get(
+            "property_id"
+        )
+
         question = state.get(
             "question"
         )
@@ -47,6 +51,12 @@ def feedback_node(state):
 
             raise Exception(
                 "login_id is required."
+            )
+
+        if not property_id:
+
+            raise Exception(
+                "property_id is required."
             )
 
         if not authorization:
@@ -69,6 +79,7 @@ def feedback_node(state):
             FeedbackReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )

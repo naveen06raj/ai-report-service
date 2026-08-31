@@ -12,61 +12,177 @@ class KeyCollectionAnalyzer:
     }
 
     @staticmethod
-    def analyze(report_data: dict) -> dict:
+    def analyze(
+        report_data: dict
+    ) -> dict:
 
-        records = report_data.get("data", [])
+        # ==================================================
+        # Validate Report Data
+        # ==================================================
 
-        if not isinstance(records, list):
-            raise ValueError("Expected 'data' to be a list")
+        if not isinstance(
+            report_data,
+            dict
+        ):
+            raise ValueError(
+                "Expected report_data to be a dictionary"
+            )
 
-        total_submissions = len(records)
+        # --------------------------------------------------
+        # Get Records
+        # --------------------------------------------------
+
+        records = report_data.get(
+            "data",
+            []
+        )
+
+        if not isinstance(
+            records,
+            list
+        ):
+            raise ValueError(
+                "Expected 'data' to be a list"
+            )
+
+        # ==================================================
+        # Counters
+        # ==================================================
+
+        total_submissions = len(
+            records
+        )
 
         status_counter = Counter()
+
         unit_counter = Counter()
+
         resident_counter = Counter()
+
         appointment_dates = Counter()
+
         appointment_times = Counter()
 
+        # ==================================================
+        # Date Tracking
+        # ==================================================
+
         earliest_submission = None
+
         latest_submission = None
+
+        # ==================================================
+        # Process Records
+        # ==================================================
 
         for item in records:
 
+            # --------------------------------------------------
+            # Safety Check
+            # --------------------------------------------------
+
+            if not isinstance(
+                item,
+                dict
+            ):
+                continue
+
+            # ==================================================
+            # Submission Information
+            # ==================================================
+
             submission = item.get(
-                "submission_info",
-                {}
+                "submission_info"
             )
+
+            if not isinstance(
+                submission,
+                dict
+            ):
+                submission = {}
+
+            # ==================================================
+            # Unit Information
+            # ==================================================
 
             unit = item.get(
-                "unit_info",
-                {}
+                "unit_info"
             )
+
+            if not isinstance(
+                unit,
+                dict
+            ):
+                unit = {}
+
+            # ==================================================
+            # User Information
+            # ==================================================
 
             user = item.get(
-                "user_info",
-                {}
+                "user_info"
             )
 
-            # ----------------------------------
+            if not isinstance(
+                user,
+                dict
+            ):
+                user = {}
+
+            # --------------------------------------------------
+            # Some API records may have user information inside
+            # submission_info.getname.
+            # --------------------------------------------------
+
+            if not user:
+
+                fallback_user = submission.get(
+                    "getname"
+                )
+
+                if isinstance(
+                    fallback_user,
+                    dict
+                ):
+                    user = fallback_user
+
+            # ==================================================
             # Status
-            # ----------------------------------
+            # ==================================================
 
             status_value = submission.get(
                 "status"
             )
 
-            status = KeyCollectionAnalyzer.STATUS_MAP.get(
-                status_value,
-                "Unknown"
+            # Convert string status to integer if required
+            try:
+
+                if status_value is not None:
+                    status_value = int(
+                        status_value
+                    )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
+                pass
+
+            status = (
+                KeyCollectionAnalyzer.STATUS_MAP.get(
+                    status_value,
+                    "Unknown"
+                )
             )
 
             status_counter[
                 status
             ] += 1
 
-            # ----------------------------------
+            # ==================================================
             # Unit
-            # ----------------------------------
+            # ==================================================
 
             unit_no = unit.get(
                 "unit"
@@ -75,12 +191,12 @@ class KeyCollectionAnalyzer:
             if unit_no:
 
                 unit_counter[
-                    unit_no
+                    str(unit_no)
                 ] += 1
 
-            # ----------------------------------
+            # ==================================================
             # Resident
-            # ----------------------------------
+            # ==================================================
 
             resident = user.get(
                 "name"
@@ -89,12 +205,12 @@ class KeyCollectionAnalyzer:
             if resident:
 
                 resident_counter[
-                    resident
+                    str(resident)
                 ] += 1
 
-            # ----------------------------------
+            # ==================================================
             # Appointment Date
-            # ----------------------------------
+            # ==================================================
 
             appt_date = submission.get(
                 "appt_date"
@@ -103,12 +219,12 @@ class KeyCollectionAnalyzer:
             if appt_date:
 
                 appointment_dates[
-                    appt_date
+                    str(appt_date)
                 ] += 1
 
-            # ----------------------------------
+            # ==================================================
             # Appointment Time
-            # ----------------------------------
+            # ==================================================
 
             appt_time = submission.get(
                 "appt_time"
@@ -117,12 +233,12 @@ class KeyCollectionAnalyzer:
             if appt_time:
 
                 appointment_times[
-                    appt_time
+                    str(appt_time)
                 ] += 1
 
-            # ----------------------------------
+            # ==================================================
             # Created Date
-            # ----------------------------------
+            # ==================================================
 
             created_at = submission.get(
                 "created_at"
@@ -133,7 +249,7 @@ class KeyCollectionAnalyzer:
                 try:
 
                     dt = datetime.strptime(
-                        created_at,
+                        str(created_at),
                         "%Y-%m-%d %H:%M:%S"
                     )
 
@@ -151,30 +267,69 @@ class KeyCollectionAnalyzer:
 
                         latest_submission = dt
 
-                except Exception:
+                except (
+                    ValueError,
+                    TypeError
+                ):
+
+                    # Ignore invalid date
                     pass
 
-        # ----------------------------------
+        # ==================================================
         # Completion Rate
-        # ----------------------------------
+        # ==================================================
 
         done_count = status_counter.get(
             "Done",
             0
         )
 
-        completion_rate = round(
-            (
-                done_count / total_submissions
-            ) * 100,
-            2
-        ) if total_submissions > 0 else 0
+        completion_rate = (
 
-        # ----------------------------------
+            round(
+                (
+                    done_count
+                    / total_submissions
+                ) * 100,
+                2
+            )
+
+            if total_submissions > 0
+
+            else 0
+        )
+
+        # ==================================================
+        # Most Busy Date
+        # ==================================================
+
+        most_busy_date = ""
+
+        if appointment_dates:
+
+            most_busy_date = (
+                appointment_dates
+                .most_common(1)[0][0]
+            )
+
+        # ==================================================
+        # Most Busy Time
+        # ==================================================
+
+        most_busy_time = ""
+
+        if appointment_times:
+
+            most_busy_time = (
+                appointment_times
+                .most_common(1)[0][0]
+            )
+
+        # ==================================================
         # Final Analytics
-        # ----------------------------------
+        # ==================================================
 
-        return {
+        analytics = {
 
             "total_submissions":
                 total_submissions,
@@ -193,7 +348,9 @@ class KeyCollectionAnalyzer:
                 ),
 
             "top_units":
-                unit_counter.most_common(5),
+                unit_counter.most_common(
+                    5
+                ),
 
             "unique_residents":
                 len(
@@ -201,7 +358,9 @@ class KeyCollectionAnalyzer:
                 ),
 
             "top_residents":
-                resident_counter.most_common(5),
+                resident_counter.most_common(
+                    5
+                ),
 
             "appointments_by_date":
                 dict(
@@ -214,26 +373,101 @@ class KeyCollectionAnalyzer:
                 ),
 
             "most_busy_date":
-                appointment_dates.most_common(1)[0][0]
-                if appointment_dates
-                else "",
+                most_busy_date,
 
             "most_busy_time":
-                appointment_times.most_common(1)[0][0]
-                if appointment_times
-                else "",
+                most_busy_time,
 
             "earliest_submission":
-                earliest_submission.strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                if earliest_submission
-                else "",
+                (
+                    earliest_submission.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    if earliest_submission
+                    else ""
+                ),
 
             "latest_submission":
-                latest_submission.strftime(
-                    "%Y-%m-%d %H:%M:%S"
+                (
+                    latest_submission.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    if latest_submission
+                    else ""
                 )
-                if latest_submission
-                else ""
         }
+
+        # ==================================================
+        # Debug
+        # ==================================================
+
+        print("=" * 80)
+        print("KEY COLLECTION ANALYTICS")
+        print("=" * 80)
+
+        print(
+            "Total Submissions:",
+            analytics[
+                "total_submissions"
+            ]
+        )
+
+        print(
+            "Completion Rate:",
+            analytics[
+                "completion_rate"
+            ]
+        )
+
+        print(
+            "Status Summary:",
+            analytics[
+                "status_summary"
+            ]
+        )
+
+        print(
+            "Unique Units:",
+            analytics[
+                "unique_units"
+            ]
+        )
+
+        print(
+            "Unique Residents:",
+            analytics[
+                "unique_residents"
+            ]
+        )
+
+        print(
+            "Most Busy Date:",
+            analytics[
+                "most_busy_date"
+            ]
+        )
+
+        print(
+            "Most Busy Time:",
+            analytics[
+                "most_busy_time"
+            ]
+        )
+
+        print(
+            "Earliest Submission:",
+            analytics[
+                "earliest_submission"
+            ]
+        )
+
+        print(
+            "Latest Submission:",
+            analytics[
+                "latest_submission"
+            ]
+        )
+
+        print("=" * 80)
+
+        return analytics

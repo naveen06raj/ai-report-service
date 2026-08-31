@@ -31,6 +31,10 @@ def financial_node(
             "login_id"
         )
 
+        property_id = state.get(
+            "property_id"
+        )
+
         authorization = state.get(
             "authorization"
         )
@@ -40,6 +44,34 @@ def financial_node(
         )
 
         # ----------------------------------
+        # Validation
+        # ----------------------------------
+
+        if not login_id:
+
+            raise Exception(
+                "login_id is required."
+            )
+
+        if not property_id:
+
+            raise Exception(
+                "property_id is required."
+            )
+
+        if not authorization:
+
+            raise Exception(
+                "Authorization token is required."
+            )
+
+        if not question:
+
+            raise Exception(
+                "Question is required."
+            )
+
+        # ----------------------------------
         # Financial Report
         # ----------------------------------
 
@@ -47,6 +79,7 @@ def financial_node(
             FinancialReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -94,12 +127,17 @@ def financial_node(
 
                     break
 
+            # ----------------------------------
+            # Get Invoice Details
+            # ----------------------------------
+
             if invoice_id:
 
                 invoice_view = (
                     FinancialReportService()
                     .get_invoice_view(
                         login_id=login_id,
+                        property_id=property_id,
                         invoice_id=invoice_id,
                         authorization=authorization
                     )
@@ -128,6 +166,10 @@ def financial_node(
         response = generate(
             prompt
         )
+
+        # ----------------------------------
+        # Parse Response
+        # ----------------------------------
 
         answer = (
             LLMResponseParser()

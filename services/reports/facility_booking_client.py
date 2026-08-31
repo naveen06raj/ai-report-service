@@ -9,17 +9,18 @@ class FacilityBookingClient:
     TIMEOUT = 60
 
     FACILITY_OPTIONS_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/facilityoptions"
+        "https://newaws.panzerplayground.com/api/ai/facilityoptions"
     )
 
     FACILITY_LIST_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/facilitylist"
+        "https://newaws.panzerplayground.com/api/ai/facilitylist"
     )
 
     def _post(
         self,
         url: str,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -30,7 +31,8 @@ class FacilityBookingClient:
         }
 
         payload = {
-            "login_id": login_id
+            "login_id": login_id,
+            "property_id": property_id
         }
 
         response = requests.post(
@@ -58,6 +60,7 @@ class FacilityBookingClient:
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -70,6 +73,7 @@ class FacilityBookingClient:
             facility_options = self._post(
                 self.FACILITY_OPTIONS_URL,
                 login_id,
+                property_id,
                 authorization
             )
 
@@ -80,6 +84,7 @@ class FacilityBookingClient:
             facility_bookings = self._post(
                 self.FACILITY_LIST_URL,
                 login_id,
+                property_id,
                 authorization
             )
 

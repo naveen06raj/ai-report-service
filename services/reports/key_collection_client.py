@@ -8,12 +8,13 @@ logger = logging.getLogger(__name__)
 class KeyCollectionClient:
 
     KEY_COLLECTION_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/keycollectionlist"
+        "https://newaws.panzerplayground.com/api/ai/keycollectionlist"
     )
 
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -21,11 +22,13 @@ class KeyCollectionClient:
 
             headers = {
                 "Authorization": authorization,
-                "Accept": "application/json"
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
             }
 
             payload = {
-                "login_id": login_id
+                "login_id": login_id,
+                "property_id": property_id
             }
 
             response = requests.post(
@@ -40,14 +43,30 @@ class KeyCollectionClient:
             key_collection = response.json()
 
             print("=" * 80)
+            print("KEY COLLECTION API REQUEST")
+            print("=" * 80)
+
+            print(
+                "Login ID    :",
+                login_id
+            )
+
+            print(
+                "Property ID :",
+                property_id
+            )
+
+            print("=" * 80)
             print("KEY COLLECTION API RESPONSE")
             print("=" * 80)
+
             print(
                 json.dumps(
                     key_collection,
                     indent=4
                 )
             )
+
             print("=" * 80)
 
             return key_collection

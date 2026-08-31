@@ -64,6 +64,7 @@ from services.anomaly.key_collection_anomaly_service import (
     KeyCollectionAnomalyService
 )
 
+
 router = APIRouter(
     prefix="/anomaly",
     tags=["AI Anomaly Detection"]
@@ -82,27 +83,66 @@ async def resident_feedback_anomaly(
 
     try:
 
+        # ----------------------------------
+        # Authorization
+        # ----------------------------------
+
         if not authorization:
+
             raise HTTPException(
                 status_code=401,
                 detail="Authorization header missing"
             )
 
-        login_id = request.get("login_id")
+        # ----------------------------------
+        # Request Parameters
+        # ----------------------------------
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        property_id = request.get(
+            "property_id"
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
+
             raise HTTPException(
                 status_code=400,
                 detail="login_id is required"
             )
 
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
+        # ----------------------------------
+        # Feedback Report
+        # ----------------------------------
+
         report_data = (
             FeedbackReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
 
         analytics = (
             ResidentFeedbackAnalyzer()
@@ -110,6 +150,10 @@ async def resident_feedback_anomaly(
                 report_data
             )
         )
+
+        # ----------------------------------
+        # AI Anomaly Detection
+        # ----------------------------------
 
         anomalies = (
             FeedbackAnomalyService()
@@ -124,16 +168,27 @@ async def resident_feedback_anomaly(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "anomalies": anomalies
 
         }
 
     except HTTPException:
+
         raise
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
 
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -154,27 +209,66 @@ async def facility_booking_anomaly(
 
     try:
 
+        # ----------------------------------
+        # Authorization
+        # ----------------------------------
+
         if not authorization:
+
             raise HTTPException(
                 status_code=401,
                 detail="Authorization header missing"
             )
 
-        login_id = request.get("login_id")
+        # ----------------------------------
+        # Request Parameters
+        # ----------------------------------
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        property_id = request.get(
+            "property_id"
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
+
             raise HTTPException(
                 status_code=400,
                 detail="login_id is required"
             )
 
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
+        # ----------------------------------
+        # Facility Report
+        # ----------------------------------
+
         report_data = (
             FacilityBookingReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
 
         analytics = (
             FacilityBookingAnalyzer()
@@ -182,6 +276,10 @@ async def facility_booking_anomaly(
                 report_data
             )
         )
+
+        # ----------------------------------
+        # AI Anomaly Detection
+        # ----------------------------------
 
         anomalies = (
             FacilityAnomalyService()
@@ -196,16 +294,27 @@ async def facility_booking_anomaly(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "anomalies": anomalies
 
         }
 
     except HTTPException:
+
         raise
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
 
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -226,34 +335,65 @@ async def visitor_management_anomaly(
 
     try:
 
+        # ----------------------------------
+        # Authorization
+        # ----------------------------------
+
         if not authorization:
+
             raise HTTPException(
                 status_code=401,
                 detail="Authorization header missing"
             )
 
-        login_id = request.get("login_id")
+        # ----------------------------------
+        # Request Parameters
+        # ----------------------------------
+
+        login_id = request.get(
+            "login_id"
+        )
+
+        property_id = request.get(
+            "property_id"
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
+
             raise HTTPException(
                 status_code=400,
                 detail="login_id is required"
             )
 
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
         # ----------------------------------
-        # Visitor APIs
+        # Visitor Report
         # ----------------------------------
 
         report_data = (
             VisitorManagementReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("VISITOR MANAGEMENT REPORT RECEIVED")
         print("=" * 80)
 
         # ----------------------------------
@@ -268,7 +408,7 @@ async def visitor_management_anomaly(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("VISITOR MANAGEMENT ANALYTICS CREATED")
         print("=" * 80)
 
         # ----------------------------------
@@ -283,7 +423,7 @@ async def visitor_management_anomaly(
         )
 
         print("=" * 80)
-        print("ANOMALIES GENERATED")
+        print("VISITOR MANAGEMENT ANOMALIES GENERATED")
         print("=" * 80)
 
         return {
@@ -292,12 +432,22 @@ async def visitor_management_anomaly(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "anomalies": anomalies
 
         }
 
     except HTTPException:
+
         raise
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
 
     except Exception as ex:
 
@@ -306,6 +456,7 @@ async def visitor_management_anomaly(
         print("=" * 80)
 
         import traceback
+
         traceback.print_exc()
 
         print("=" * 80)
@@ -314,6 +465,7 @@ async def visitor_management_anomaly(
             status_code=500,
             detail=str(ex)
         )
+
 
 # ==================================================
 # Financial Overview
@@ -331,6 +483,10 @@ async def financial_overview_anomaly(
         print("FINANCIAL ANOMALY API STARTED")
         print("=" * 80)
 
+        # ----------------------------------
+        # Authorization
+        # ----------------------------------
+
         if not authorization:
 
             raise HTTPException(
@@ -338,14 +494,31 @@ async def financial_overview_anomaly(
                 detail="Authorization header missing"
             )
 
+        # ----------------------------------
+        # Request Parameters
+        # ----------------------------------
+
         login_id = request.get(
             "login_id"
+        )
+
+        property_id = request.get(
+            "property_id"
         )
 
         print(
             "LOGIN ID:",
             login_id
         )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
 
@@ -354,20 +527,31 @@ async def financial_overview_anomaly(
                 detail="login_id is required"
             )
 
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
         # ----------------------------------
-        # Financial APIs
+        # Financial Report
         # ----------------------------------
 
         report_data = (
             FinancialReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("FINANCIAL REPORT RECEIVED")
         print("=" * 80)
 
         # ----------------------------------
@@ -382,7 +566,7 @@ async def financial_overview_anomaly(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("FINANCIAL ANALYTICS CREATED")
         print("=" * 80)
 
         import json
@@ -406,7 +590,7 @@ async def financial_overview_anomaly(
         )
 
         print("=" * 80)
-        print("ANOMALIES GENERATED")
+        print("FINANCIAL ANOMALIES GENERATED")
         print("=" * 80)
 
         return {
@@ -415,12 +599,22 @@ async def financial_overview_anomaly(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "anomalies": anomalies
 
         }
 
     except HTTPException:
+
         raise
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
 
     except Exception as ex:
 
@@ -429,6 +623,7 @@ async def financial_overview_anomaly(
         print("=" * 80)
 
         import traceback
+
         traceback.print_exc()
 
         print("=" * 80)
@@ -437,6 +632,7 @@ async def financial_overview_anomaly(
             status_code=500,
             detail=str(ex)
         )
+
 
 # ==================================================
 # Key Collection
@@ -454,6 +650,10 @@ async def key_collection_anomaly(
         print("KEY COLLECTION ANOMALY API STARTED")
         print("=" * 80)
 
+        # ----------------------------------
+        # Authorization
+        # ----------------------------------
+
         if not authorization:
 
             raise HTTPException(
@@ -461,14 +661,31 @@ async def key_collection_anomaly(
                 detail="Authorization header missing"
             )
 
+        # ----------------------------------
+        # Request Parameters
+        # ----------------------------------
+
         login_id = request.get(
             "login_id"
+        )
+
+        property_id = request.get(
+            "property_id"
         )
 
         print(
             "LOGIN ID:",
             login_id
         )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
+
+        # ----------------------------------
+        # Validation
+        # ----------------------------------
 
         if not login_id:
 
@@ -477,20 +694,31 @@ async def key_collection_anomaly(
                 detail="login_id is required"
             )
 
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        login_id = int(login_id)
+        property_id = int(property_id)
+
         # ----------------------------------
-        # Key Collection API
+        # Key Collection Report
         # ----------------------------------
 
         report_data = (
             KeyCollectionReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
         print("=" * 80)
-        print("REPORT RECEIVED")
+        print("KEY COLLECTION REPORT RECEIVED")
         print("=" * 80)
 
         # ----------------------------------
@@ -505,7 +733,7 @@ async def key_collection_anomaly(
         )
 
         print("=" * 80)
-        print("ANALYTICS CREATED")
+        print("KEY COLLECTION ANALYTICS CREATED")
         print("=" * 80)
 
         import json
@@ -529,7 +757,7 @@ async def key_collection_anomaly(
         )
 
         print("=" * 80)
-        print("ANOMALIES GENERATED")
+        print("KEY COLLECTION ANOMALIES GENERATED")
         print("=" * 80)
 
         return {
@@ -538,12 +766,22 @@ async def key_collection_anomaly(
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "anomalies": anomalies
 
         }
 
     except HTTPException:
+
         raise
+
+    except ValueError:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
 
     except Exception as ex:
 
@@ -552,6 +790,7 @@ async def key_collection_anomaly(
         print("=" * 80)
 
         import traceback
+
         traceback.print_exc()
 
         print("=" * 80)

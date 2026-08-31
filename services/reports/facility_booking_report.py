@@ -8,6 +8,7 @@ class FacilityBookingReportService:
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -17,6 +18,7 @@ class FacilityBookingReportService:
                 FacilityBookingClient()
                 .get_report(
                     login_id=login_id,
+                    property_id=property_id,
                     authorization=authorization
                 )
             )

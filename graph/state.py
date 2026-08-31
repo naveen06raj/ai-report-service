@@ -21,10 +21,10 @@ class ReportState(
     invoice_id: int
 
     # ----------------------------------
-    # Old Modules
+    # Property / Period
     # ----------------------------------
 
-    property_id: str
+    property_id: int
 
     period: str
 

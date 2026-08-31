@@ -8,16 +8,19 @@ logger = logging.getLogger(__name__)
 class FeedbackClient:
 
     FEEDBACK_OPTIONS_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/feedbackoptions"
+        "https://newaws.panzerplayground.com/api/ai/feedbackoptions"
     )
 
     FEEDBACK_LIST_URL = (
-        "https://newaws.panzerplayground.com/api/ops/v4/feedbacklist"
+        "https://newaws.panzerplayground.com/api/ai/feedbacklist"
     )
+
+    TIMEOUT = 60
 
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -25,23 +28,76 @@ class FeedbackClient:
 
             headers = {
                 "Authorization": authorization,
-                "Accept": "application/json"
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
             }
 
             payload = {
-                "login_id": login_id
+                "login_id": login_id,
+                "property_id": property_id
             }
 
-            # ----------------------------------
-            # Feedback Types
-            # ----------------------------------
+            # ==================================================
+            # Debug Request
+            # ==================================================
+
+            print("=" * 80)
+            print("FEEDBACK API REQUEST")
+            print("=" * 80)
+
+            print(
+                "LOGIN ID:",
+                login_id
+            )
+
+            print(
+                "PROPERTY ID:",
+                property_id
+            )
+
+            print(
+                "OPTIONS URL:",
+                self.FEEDBACK_OPTIONS_URL
+            )
+
+            print(
+                "LIST URL:",
+                self.FEEDBACK_LIST_URL
+            )
+
+            print(
+                "PAYLOAD:",
+                payload
+            )
+
+            print("=" * 80)
+
+            # ==================================================
+            # Feedback Options
+            # ==================================================
 
             options_response = requests.post(
                 self.FEEDBACK_OPTIONS_URL,
                 headers=headers,
                 data=payload,
-                timeout=60
+                timeout=self.TIMEOUT
             )
+
+            print("=" * 80)
+            print("FEEDBACK OPTIONS RESPONSE")
+            print("=" * 80)
+
+            print(
+                "STATUS:",
+                options_response.status_code
+            )
+
+            print(
+                "BODY:",
+                options_response.text
+            )
+
+            print("=" * 80)
 
             options_response.raise_for_status()
 
@@ -49,16 +105,32 @@ class FeedbackClient:
                 options_response.json()
             )
 
-            # ----------------------------------
+            # ==================================================
             # Feedback List
-            # ----------------------------------
+            # ==================================================
 
             list_response = requests.post(
                 self.FEEDBACK_LIST_URL,
                 headers=headers,
                 data=payload,
-                timeout=60
+                timeout=self.TIMEOUT
             )
+
+            print("=" * 80)
+            print("FEEDBACK LIST RESPONSE")
+            print("=" * 80)
+
+            print(
+                "STATUS:",
+                list_response.status_code
+            )
+
+            print(
+                "BODY:",
+                list_response.text
+            )
+
+            print("=" * 80)
 
             list_response.raise_for_status()
 
@@ -66,19 +138,21 @@ class FeedbackClient:
                 list_response.json()
             )
 
-            # ----------------------------------
-            # DEBUG
-            # ----------------------------------
+            # ==================================================
+            # Debug JSON
+            # ==================================================
 
             print("=" * 80)
-            print("FEEDBACK LIST API RESPONSE")
+            print("FEEDBACK LIST API JSON")
             print("=" * 80)
+
             print(
                 json.dumps(
                     feedback_list,
                     indent=4
                 )
             )
+
             print("=" * 80)
 
             return {
@@ -92,8 +166,36 @@ class FeedbackClient:
                 "Feedback API request failed"
             )
 
+            if ex.response is not None:
+
+                print("=" * 80)
+                print("FEEDBACK API ERROR RESPONSE")
+                print("=" * 80)
+
+                print(
+                    "STATUS:",
+                    ex.response.status_code
+                )
+
+                print(
+                    "BODY:",
+                    ex.response.text
+                )
+
+                print("=" * 80)
+
             raise Exception(
                 f"Feedback API Error: {str(ex)}"
+            )
+
+        except ValueError as ex:
+
+            logger.exception(
+                "Invalid JSON returned by Feedback API"
+            )
+
+            raise Exception(
+                f"Feedback API returned invalid JSON: {str(ex)}"
             )
 
         except Exception as ex:

@@ -1,10 +1,10 @@
 import traceback
+
 from fastapi import (
     APIRouter,
     HTTPException,
     Header
 )
-
 
 from services.reports.feedback_report import (
     FeedbackReportService
@@ -49,6 +49,7 @@ from services.reports.financial_report import (
 from services.analytics.financial_overview_analyzer import (
     FinancialAnalyzer
 )
+
 from services.reports.key_collection_report import (
     KeyCollectionReportService
 )
@@ -57,11 +58,66 @@ from services.analytics.key_collection_analyzer import (
     KeyCollectionAnalyzer
 )
 
+
 router = APIRouter(
     prefix="/summary",
     tags=["AI Summary"]
 )
 
+
+# ==================================================
+# Helper
+# ==================================================
+
+def get_request_ids(
+    request: dict
+):
+
+    login_id = request.get(
+        "login_id"
+    )
+
+    property_id = request.get(
+        "property_id"
+    )
+
+    if not login_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id is required"
+        )
+
+    if not property_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail="property_id is required"
+        )
+
+    try:
+
+        login_id = int(
+            login_id
+        )
+
+        property_id = int(
+            property_id
+        )
+
+    except (TypeError, ValueError):
+
+        raise HTTPException(
+            status_code=400,
+            detail="login_id and property_id must be integers"
+        )
+
+    return login_id, property_id
+
+
+# ==================================================
+# Resident Feedback Summary
+# ==================================================
 
 @router.post("/resident-feedback")
 async def resident_feedback_summary(
@@ -71,10 +127,6 @@ async def resident_feedback_summary(
 
     try:
 
-        print("=" * 80)
-        print("FEEDBACK SUMMARY API STARTED")
-        print("=" * 80)
-
         if not authorization:
 
             raise HTTPException(
@@ -82,30 +134,33 @@ async def resident_feedback_summary(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_request_ids(
+            request
         )
+
+        print("=" * 80)
+        print("FEEDBACK SUMMARY API STARTED")
+        print("=" * 80)
 
         print(
             "LOGIN ID:",
             login_id
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
         print(
-            "CALLING FEEDBACK APIS..."
+            "PROPERTY ID:",
+            property_id
         )
+
+        # ----------------------------------
+        # Report
+        # ----------------------------------
 
         report_data = (
             FeedbackReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -113,6 +168,10 @@ async def resident_feedback_summary(
         print(
             "REPORT RECEIVED"
         )
+
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
 
         analytics = (
             ResidentFeedbackAnalyzer()
@@ -125,13 +184,9 @@ async def resident_feedback_summary(
             "ANALYTICS CREATED"
         )
 
-        import json
-
-        print("=" * 80)
-        print("ANALYTICS")
-        print("=" * 80)
-        print(json.dumps(analytics, indent=4))
-        print("=" * 80)
+        # ----------------------------------
+        # Prompt
+        # ----------------------------------
 
         prompt = (
             PromptBuilder()
@@ -140,29 +195,17 @@ async def resident_feedback_summary(
             )
         )
 
-        print(
-            "PROMPT CREATED"
-        )
-
-        print("=" * 80)
-        print("PROMPT")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
+        # ----------------------------------
+        # Gemini
+        # ----------------------------------
 
         gemini_response = generate(
             prompt
         )
 
-        print(
-            "GEMINI RESPONSE RECEIVED"
-        )
-
-        print("=" * 80)
-        print("RAW GEMINI RESPONSE")
-        print("=" * 80)
-        print(gemini_response)
-        print("=" * 80)
+        # ----------------------------------
+        # Parse
+        # ----------------------------------
 
         summary = (
             LLMResponseParser()
@@ -171,29 +214,27 @@ async def resident_feedback_summary(
             )
         )
 
-        print(
-            "SUMMARY PARSED"
-        )
-
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "summary": summary
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print(traceback.format_exc())
-        print("=" * 80)
+        print(
+            traceback.format_exc()
+        )
 
         raise HTTPException(
             status_code=500,
@@ -201,13 +242,9 @@ async def resident_feedback_summary(
         )
 
 
-# --------------------------------------------------
+# ==================================================
 # Facility Booking Summary
-# --------------------------------------------------
-
-# --------------------------------------------------
-# Facility Booking Summary
-# --------------------------------------------------
+# ==================================================
 
 @router.post("/facility-booking")
 async def facility_booking_summary(
@@ -217,10 +254,6 @@ async def facility_booking_summary(
 
     try:
 
-        print("=" * 80)
-        print("FACILITY SUMMARY API STARTED")
-        print("=" * 80)
-
         if not authorization:
 
             raise HTTPException(
@@ -228,37 +261,40 @@ async def facility_booking_summary(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_request_ids(
+            request
         )
+
+        print("=" * 80)
+        print("FACILITY SUMMARY API STARTED")
+        print("=" * 80)
 
         print(
             "LOGIN ID:",
             login_id
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
         print(
-            "CALLING FACILITY BOOKING APIS..."
+            "PROPERTY ID:",
+            property_id
         )
+
+        # ----------------------------------
+        # Report
+        # ----------------------------------
 
         report_data = (
             FacilityBookingReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
 
-        print(
-            "REPORT RECEIVED"
-        )
+        # ----------------------------------
+        # Analytics
+        # ----------------------------------
 
         analytics = (
             FacilityBookingAnalyzer()
@@ -267,22 +303,9 @@ async def facility_booking_summary(
             )
         )
 
-        print(
-            "FACILITY ANALYTICS CREATED"
-        )
-
-        import json
-
-        print("=" * 80)
-        print("FACILITY ANALYTICS")
-        print("=" * 80)
-        print(
-            json.dumps(
-                analytics,
-                indent=4
-            )
-        )
-        print("=" * 80)
+        # ----------------------------------
+        # Prompt
+        # ----------------------------------
 
         prompt = (
             PromptBuilder()
@@ -291,29 +314,17 @@ async def facility_booking_summary(
             )
         )
 
-        print(
-            "PROMPT CREATED"
-        )
-
-        print("=" * 80)
-        print("PROMPT")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
+        # ----------------------------------
+        # Gemini
+        # ----------------------------------
 
         gemini_response = generate(
             prompt
         )
 
-        print(
-            "GEMINI RESPONSE RECEIVED"
-        )
-
-        print("=" * 80)
-        print("RAW GEMINI RESPONSE")
-        print("=" * 80)
-        print(gemini_response)
-        print("=" * 80)
+        # ----------------------------------
+        # Parse
+        # ----------------------------------
 
         summary = (
             LLMResponseParser()
@@ -322,38 +333,37 @@ async def facility_booking_summary(
             )
         )
 
-        print(
-            "SUMMARY PARSED"
-        )
-
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "summary": summary
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print(traceback.format_exc())
-        print("=" * 80)
+        print(
+            traceback.format_exc()
+        )
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
 
-# --------------------------------------------------
+
+# ==================================================
 # Visitor Management Summary
-# --------------------------------------------------
+# ==================================================
 
 @router.post("/visitor-management")
 async def visitor_management_summary(
@@ -363,10 +373,6 @@ async def visitor_management_summary(
 
     try:
 
-        print("=" * 80)
-        print("VISITOR SUMMARY API STARTED")
-        print("=" * 80)
-
         if not authorization:
 
             raise HTTPException(
@@ -374,40 +380,35 @@ async def visitor_management_summary(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_request_ids(
+            request
         )
+
+        print("=" * 80)
+        print("VISITOR SUMMARY API STARTED")
+        print("=" * 80)
 
         print(
             "LOGIN ID:",
             login_id
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
-        # ----------------------------------
-        # Call Visitor APIs
-        # ----------------------------------
-
         print(
-            "CALLING VISITOR APIS..."
+            "PROPERTY ID:",
+            property_id
         )
+
+        # ----------------------------------
+        # Report
+        # ----------------------------------
 
         report_data = (
             VisitorManagementReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
-        )
-
-        print(
-            "REPORT RECEIVED"
         )
 
         # ----------------------------------
@@ -421,23 +422,6 @@ async def visitor_management_summary(
             )
         )
 
-        print(
-            "VISITOR ANALYTICS CREATED"
-        )
-
-        import json
-
-        print("=" * 80)
-        print("VISITOR ANALYTICS")
-        print("=" * 80)
-        print(
-            json.dumps(
-                analytics,
-                indent=4
-            )
-        )
-        print("=" * 80)
-
         # ----------------------------------
         # Prompt
         # ----------------------------------
@@ -449,12 +433,6 @@ async def visitor_management_summary(
             )
         )
 
-        print("=" * 80)
-        print("PROMPT")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
-
         # ----------------------------------
         # Gemini
         # ----------------------------------
@@ -463,11 +441,9 @@ async def visitor_management_summary(
             prompt
         )
 
-        print("=" * 80)
-        print("RAW GEMINI RESPONSE")
-        print("=" * 80)
-        print(gemini_response)
-        print("=" * 80)
+        # ----------------------------------
+        # Parse
+        # ----------------------------------
 
         summary = (
             LLMResponseParser()
@@ -476,38 +452,37 @@ async def visitor_management_summary(
             )
         )
 
-        print(
-            "SUMMARY PARSED"
-        )
-
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "summary": summary
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print(traceback.format_exc())
-        print("=" * 80)
+        print(
+            traceback.format_exc()
+        )
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
 
-# --------------------------------------------------
+
+# ==================================================
 # Financial Summary
-# --------------------------------------------------
+# ==================================================
 
 @router.post("/financial-overview")
 async def financial_summary(
@@ -517,10 +492,6 @@ async def financial_summary(
 
     try:
 
-        print("=" * 80)
-        print("FINANCIAL SUMMARY API STARTED")
-        print("=" * 80)
-
         if not authorization:
 
             raise HTTPException(
@@ -528,40 +499,35 @@ async def financial_summary(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_request_ids(
+            request
         )
+
+        print("=" * 80)
+        print("FINANCIAL SUMMARY API STARTED")
+        print("=" * 80)
 
         print(
             "LOGIN ID:",
             login_id
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
-        # ----------------------------------
-        # Call Financial APIs
-        # ----------------------------------
-
         print(
-            "CALLING FINANCIAL APIS..."
+            "PROPERTY ID:",
+            property_id
         )
+
+        # ----------------------------------
+        # Report
+        # ----------------------------------
 
         report_data = (
             FinancialReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
-        )
-
-        print(
-            "REPORT RECEIVED"
         )
 
         # ----------------------------------
@@ -575,23 +541,6 @@ async def financial_summary(
             )
         )
 
-        print(
-            "FINANCIAL ANALYTICS CREATED"
-        )
-
-        import json
-
-        print("=" * 80)
-        print("FINANCIAL ANALYTICS")
-        print("=" * 80)
-        print(
-            json.dumps(
-                analytics,
-                indent=4
-            )
-        )
-        print("=" * 80)
-
         # ----------------------------------
         # Prompt
         # ----------------------------------
@@ -603,12 +552,6 @@ async def financial_summary(
             )
         )
 
-        print("=" * 80)
-        print("PROMPT")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
-
         # ----------------------------------
         # Gemini
         # ----------------------------------
@@ -617,11 +560,9 @@ async def financial_summary(
             prompt
         )
 
-        print("=" * 80)
-        print("RAW GEMINI RESPONSE")
-        print("=" * 80)
-        print(gemini_response)
-        print("=" * 80)
+        # ----------------------------------
+        # Parse
+        # ----------------------------------
 
         summary = (
             LLMResponseParser()
@@ -630,38 +571,37 @@ async def financial_summary(
             )
         )
 
-        print(
-            "SUMMARY PARSED"
-        )
-
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "summary": summary
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print(traceback.format_exc())
-        print("=" * 80)
+        print(
+            traceback.format_exc()
+        )
 
         raise HTTPException(
             status_code=500,
             detail=str(ex)
         )
 
-# --------------------------------------------------
+
+# ==================================================
 # Key Collection Summary
-# --------------------------------------------------
+# ==================================================
 
 @router.post("/key-collection")
 async def key_collection_summary(
@@ -671,10 +611,6 @@ async def key_collection_summary(
 
     try:
 
-        print("=" * 80)
-        print("KEY COLLECTION SUMMARY API STARTED")
-        print("=" * 80)
-
         if not authorization:
 
             raise HTTPException(
@@ -682,40 +618,35 @@ async def key_collection_summary(
                 detail="Authorization header missing"
             )
 
-        login_id = request.get(
-            "login_id"
+        login_id, property_id = get_request_ids(
+            request
         )
+
+        print("=" * 80)
+        print("KEY COLLECTION SUMMARY API STARTED")
+        print("=" * 80)
 
         print(
             "LOGIN ID:",
             login_id
         )
 
-        if not login_id:
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id is required"
-            )
-
-        # ----------------------------------
-        # Call Report API
-        # ----------------------------------
-
         print(
-            "CALLING KEY COLLECTION API..."
+            "PROPERTY ID:",
+            property_id
         )
+
+        # ----------------------------------
+        # Report
+        # ----------------------------------
 
         report_data = (
             KeyCollectionReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
-        )
-
-        print(
-            "REPORT RECEIVED"
         )
 
         # ----------------------------------
@@ -729,23 +660,6 @@ async def key_collection_summary(
             )
         )
 
-        print(
-            "KEY COLLECTION ANALYTICS CREATED"
-        )
-
-        import json
-
-        print("=" * 80)
-        print("KEY COLLECTION ANALYTICS")
-        print("=" * 80)
-        print(
-            json.dumps(
-                analytics,
-                indent=4
-            )
-        )
-        print("=" * 80)
-
         # ----------------------------------
         # Prompt
         # ----------------------------------
@@ -757,12 +671,6 @@ async def key_collection_summary(
             )
         )
 
-        print("=" * 80)
-        print("PROMPT")
-        print("=" * 80)
-        print(prompt)
-        print("=" * 80)
-
         # ----------------------------------
         # Gemini
         # ----------------------------------
@@ -771,11 +679,9 @@ async def key_collection_summary(
             prompt
         )
 
-        print("=" * 80)
-        print("RAW GEMINI RESPONSE")
-        print("=" * 80)
-        print(gemini_response)
-        print("=" * 80)
+        # ----------------------------------
+        # Parse
+        # ----------------------------------
 
         summary = (
             LLMResponseParser()
@@ -784,29 +690,27 @@ async def key_collection_summary(
             )
         )
 
-        print(
-            "SUMMARY PARSED"
-        )
-
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "summary": summary
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print(traceback.format_exc())
-        print("=" * 80)
+        print(
+            traceback.format_exc()
+        )
 
         raise HTTPException(
             status_code=500,

@@ -8,6 +8,7 @@ class FinancialReportService:
     def get_report(
         self,
         login_id: int,
+        property_id: int,
         authorization: str
     ) -> dict:
 
@@ -17,6 +18,7 @@ class FinancialReportService:
                 FinancialReportClient()
                 .get_report(
                     login_id=login_id,
+                    property_id=property_id,
                     authorization=authorization
                 )
             )
@@ -34,6 +36,7 @@ class FinancialReportService:
     def get_invoice_view(
         self,
         login_id: int,
+        property_id: int,
         invoice_id: int,
         authorization: str
     ) -> dict:
@@ -44,6 +47,7 @@ class FinancialReportService:
                 FinancialReportClient()
                 .get_invoice_view(
                     login_id=login_id,
+                    property_id=property_id,
                     invoice_id=invoice_id,
                     authorization=authorization
                 )

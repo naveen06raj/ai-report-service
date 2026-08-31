@@ -16,6 +16,7 @@ from services.workflow.key_collection_workflow_service import (
     KeyCollectionWorkflowService
 )
 
+
 router = APIRouter(
     prefix="/workflow",
     tags=["AI Workflow"]
@@ -34,6 +35,10 @@ async def key_collection_workflow(
 
     try:
 
+        # ----------------------------------
+        # Authorization Validation
+        # ----------------------------------
+
         if not authorization:
 
             raise HTTPException(
@@ -41,9 +46,21 @@ async def key_collection_workflow(
                 detail="Authorization header missing"
             )
 
+        # ----------------------------------
+        # Get Request Parameters
+        # ----------------------------------
+
         login_id = request.get(
             "login_id"
         )
+
+        property_id = request.get(
+            "property_id"
+        )
+
+        # ----------------------------------
+        # Validate login_id
+        # ----------------------------------
 
         if not login_id:
 
@@ -53,13 +70,77 @@ async def key_collection_workflow(
             )
 
         # ----------------------------------
-        # Get Report
+        # Validate property_id
+        # ----------------------------------
+
+        if not property_id:
+
+            raise HTTPException(
+                status_code=400,
+                detail="property_id is required"
+            )
+
+        # ----------------------------------
+        # Convert IDs to Integer
+        # ----------------------------------
+
+        try:
+
+            login_id = int(
+                login_id
+            )
+
+            property_id = int(
+                property_id
+            )
+
+        except (
+            TypeError,
+            ValueError
+        ):
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "login_id and property_id "
+                    "must be integers"
+                )
+            )
+
+        # ----------------------------------
+        # Debug
+        # ----------------------------------
+
+        print("=" * 80)
+        print("KEY COLLECTION WORKFLOW REQUEST")
+        print("=" * 80)
+
+        print(
+            "LOGIN ID:",
+            login_id
+        )
+
+        print(
+            "PROPERTY ID:",
+            property_id
+        )
+
+        print(
+            "AUTH EXISTS:",
+            bool(authorization)
+        )
+
+        print("=" * 80)
+
+        # ----------------------------------
+        # Get Key Collection Report
         # ----------------------------------
 
         report_data = (
             KeyCollectionReportService()
             .get_report(
                 login_id=login_id,
+                property_id=property_id,
                 authorization=authorization
             )
         )
@@ -69,7 +150,7 @@ async def key_collection_workflow(
         print("=" * 80)
 
         # ----------------------------------
-        # Analytics
+        # Analyze Data
         # ----------------------------------
 
         analytics = (
@@ -84,7 +165,7 @@ async def key_collection_workflow(
         print("=" * 80)
 
         # ----------------------------------
-        # AI Workflow
+        # Generate AI Workflow
         # ----------------------------------
 
         workflow = (
@@ -98,17 +179,24 @@ async def key_collection_workflow(
         print("KEY COLLECTION WORKFLOW GENERATED")
         print("=" * 80)
 
+        # ----------------------------------
+        # Response
+        # ----------------------------------
+
         return {
 
             "status": True,
 
             "login_id": login_id,
 
+            "property_id": property_id,
+
             "workflow": workflow
 
         }
 
     except HTTPException:
+
         raise
 
     except Exception as ex:
@@ -118,6 +206,7 @@ async def key_collection_workflow(
         print("=" * 80)
 
         import traceback
+
         traceback.print_exc()
 
         print("=" * 80)
