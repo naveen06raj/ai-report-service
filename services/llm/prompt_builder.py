@@ -163,6 +163,22 @@ class PromptBuilder:
                     analytics_data
             }
         )
+
+     # ==================================================
+    # MONTHLY REPORT PROMPT
+    # ==================================================
+
+    def build_monthly_report_prompt(
+        self,
+        analytics_data: dict
+    ) -> str:
+
+        return self.build_prompt(
+            "prompts/summary/monthly_report.txt",
+            {
+                "analytics_data": analytics_data
+            }
+        )
             # --------------------------------------------------
     # Facility Chat Promp
     # --------------------------------------------------
