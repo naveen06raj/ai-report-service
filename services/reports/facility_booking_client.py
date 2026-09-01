@@ -21,6 +21,8 @@ class FacilityBookingClient:
         url: str,
         login_id: int,
         property_id: int,
+        start_date: str,
+        end_date: str,
         authorization: str
     ) -> dict:
 
@@ -32,8 +34,21 @@ class FacilityBookingClient:
 
         payload = {
             "login_id": login_id,
-            "property_id": property_id
+            "property_id": property_id,
+            "start_date": start_date,
+            "end_date": end_date
         }
+
+        print("=" * 80)
+        print("FACILITY API REQUEST")
+        print("=" * 80)
+        print("URL:", url)
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
+        print("PAYLOAD:", payload)
+        print("=" * 80)
 
         response = requests.post(
             url,
@@ -41,6 +56,13 @@ class FacilityBookingClient:
             data=payload,
             timeout=self.TIMEOUT
         )
+
+        print("=" * 80)
+        print("FACILITY API RESPONSE")
+        print("=" * 80)
+        print("STATUS:", response.status_code)
+        print("BODY:", response.text)
+        print("=" * 80)
 
         response.raise_for_status()
 
@@ -61,6 +83,8 @@ class FacilityBookingClient:
         self,
         login_id: int,
         property_id: int,
+        start_date: str,
+        end_date: str,
         authorization: str
     ) -> dict:
 
@@ -71,10 +95,12 @@ class FacilityBookingClient:
             # ----------------------------------
 
             facility_options = self._post(
-                self.FACILITY_OPTIONS_URL,
-                login_id,
-                property_id,
-                authorization
+                url=self.FACILITY_OPTIONS_URL,
+                login_id=login_id,
+                property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
+                authorization=authorization
             )
 
             # ----------------------------------
@@ -82,11 +108,17 @@ class FacilityBookingClient:
             # ----------------------------------
 
             facility_bookings = self._post(
-                self.FACILITY_LIST_URL,
-                login_id,
-                property_id,
-                authorization
+                url=self.FACILITY_LIST_URL,
+                login_id=login_id,
+                property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
+                authorization=authorization
             )
+
+            # ----------------------------------
+            # Logging
+            # ----------------------------------
 
             logger.info(
                 "Facility Report: %s facilities, %s bookings",

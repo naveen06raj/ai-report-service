@@ -69,7 +69,7 @@ router = APIRouter(
 # Helper
 # ==================================================
 
-def get_request_ids(
+def get_request_parameters(
     request: dict
 ):
 
@@ -80,6 +80,18 @@ def get_request_ids(
     property_id = request.get(
         "property_id"
     )
+
+    start_date = request.get(
+        "start_date"
+    )
+
+    end_date = request.get(
+        "end_date"
+    )
+
+    # ----------------------------------
+    # Required Fields
+    # ----------------------------------
 
     if not login_id:
 
@@ -94,6 +106,24 @@ def get_request_ids(
             status_code=400,
             detail="property_id is required"
         )
+
+    if not start_date:
+
+        raise HTTPException(
+            status_code=400,
+            detail="start_date is required"
+        )
+
+    if not end_date:
+
+        raise HTTPException(
+            status_code=400,
+            detail="end_date is required"
+        )
+
+    # ----------------------------------
+    # Convert IDs
+    # ----------------------------------
 
     try:
 
@@ -112,7 +142,51 @@ def get_request_ids(
             detail="login_id and property_id must be integers"
         )
 
-    return login_id, property_id
+    # ----------------------------------
+    # Validate Date Format
+    # ----------------------------------
+
+    if (
+        not isinstance(start_date, str)
+        or len(start_date) != 10
+        or start_date[4] != "-"
+        or start_date[7] != "-"
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="start_date must be in YYYY-MM-DD format"
+        )
+
+    if (
+        not isinstance(end_date, str)
+        or len(end_date) != 10
+        or end_date[4] != "-"
+        or end_date[7] != "-"
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="end_date must be in YYYY-MM-DD format"
+        )
+
+    # ----------------------------------
+    # Validate Date Range
+    # ----------------------------------
+
+    if start_date > end_date:
+
+        raise HTTPException(
+            status_code=400,
+            detail="start_date cannot be greater than end_date"
+        )
+
+    return (
+        login_id,
+        property_id,
+        start_date,
+        end_date
+    )
 
 
 # ==================================================
@@ -134,7 +208,12 @@ async def resident_feedback_summary(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_request_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_parameters(
             request
         )
 
@@ -142,15 +221,10 @@ async def resident_feedback_summary(
         print("FEEDBACK SUMMARY API STARTED")
         print("=" * 80)
 
-        print(
-            "LOGIN ID:",
-            login_id
-        )
-
-        print(
-            "PROPERTY ID:",
-            property_id
-        )
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
 
         # ----------------------------------
         # Report
@@ -161,12 +235,10 @@ async def resident_feedback_summary(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
-        )
-
-        print(
-            "REPORT RECEIVED"
         )
 
         # ----------------------------------
@@ -178,10 +250,6 @@ async def resident_feedback_summary(
             .analyze(
                 report_data
             )
-        )
-
-        print(
-            "ANALYTICS CREATED"
         )
 
         # ----------------------------------
@@ -222,6 +290,10 @@ async def resident_feedback_summary(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "summary": summary
 
         }
@@ -230,7 +302,7 @@ async def resident_feedback_summary(
 
         raise
 
-    except Exception as ex:
+    except Exception:
 
         print(
             traceback.format_exc()
@@ -238,7 +310,7 @@ async def resident_feedback_summary(
 
         raise HTTPException(
             status_code=500,
-            detail=str(ex)
+            detail="Failed to generate resident feedback summary"
         )
 
 
@@ -261,7 +333,12 @@ async def facility_booking_summary(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_request_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_parameters(
             request
         )
 
@@ -269,15 +346,10 @@ async def facility_booking_summary(
         print("FACILITY SUMMARY API STARTED")
         print("=" * 80)
 
-        print(
-            "LOGIN ID:",
-            login_id
-        )
-
-        print(
-            "PROPERTY ID:",
-            property_id
-        )
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
 
         # ----------------------------------
         # Report
@@ -288,6 +360,8 @@ async def facility_booking_summary(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -341,6 +415,10 @@ async def facility_booking_summary(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "summary": summary
 
         }
@@ -349,7 +427,7 @@ async def facility_booking_summary(
 
         raise
 
-    except Exception as ex:
+    except Exception:
 
         print(
             traceback.format_exc()
@@ -357,7 +435,7 @@ async def facility_booking_summary(
 
         raise HTTPException(
             status_code=500,
-            detail=str(ex)
+            detail="Failed to generate facility booking summary"
         )
 
 
@@ -380,7 +458,12 @@ async def visitor_management_summary(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_request_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_parameters(
             request
         )
 
@@ -388,15 +471,10 @@ async def visitor_management_summary(
         print("VISITOR SUMMARY API STARTED")
         print("=" * 80)
 
-        print(
-            "LOGIN ID:",
-            login_id
-        )
-
-        print(
-            "PROPERTY ID:",
-            property_id
-        )
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
 
         # ----------------------------------
         # Report
@@ -407,6 +485,8 @@ async def visitor_management_summary(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -460,6 +540,10 @@ async def visitor_management_summary(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "summary": summary
 
         }
@@ -468,7 +552,7 @@ async def visitor_management_summary(
 
         raise
 
-    except Exception as ex:
+    except Exception:
 
         print(
             traceback.format_exc()
@@ -476,7 +560,7 @@ async def visitor_management_summary(
 
         raise HTTPException(
             status_code=500,
-            detail=str(ex)
+            detail="Failed to generate visitor management summary"
         )
 
 
@@ -499,7 +583,12 @@ async def financial_summary(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_request_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_parameters(
             request
         )
 
@@ -507,15 +596,10 @@ async def financial_summary(
         print("FINANCIAL SUMMARY API STARTED")
         print("=" * 80)
 
-        print(
-            "LOGIN ID:",
-            login_id
-        )
-
-        print(
-            "PROPERTY ID:",
-            property_id
-        )
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
 
         # ----------------------------------
         # Report
@@ -526,6 +610,8 @@ async def financial_summary(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -579,6 +665,10 @@ async def financial_summary(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "summary": summary
 
         }
@@ -587,7 +677,7 @@ async def financial_summary(
 
         raise
 
-    except Exception as ex:
+    except Exception:
 
         print(
             traceback.format_exc()
@@ -595,7 +685,7 @@ async def financial_summary(
 
         raise HTTPException(
             status_code=500,
-            detail=str(ex)
+            detail="Failed to generate financial summary"
         )
 
 
@@ -618,7 +708,12 @@ async def key_collection_summary(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_request_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_parameters(
             request
         )
 
@@ -626,15 +721,10 @@ async def key_collection_summary(
         print("KEY COLLECTION SUMMARY API STARTED")
         print("=" * 80)
 
-        print(
-            "LOGIN ID:",
-            login_id
-        )
-
-        print(
-            "PROPERTY ID:",
-            property_id
-        )
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
+        print("START DATE:", start_date)
+        print("END DATE:", end_date)
 
         # ----------------------------------
         # Report
@@ -645,6 +735,8 @@ async def key_collection_summary(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -698,6 +790,10 @@ async def key_collection_summary(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "summary": summary
 
         }
@@ -706,7 +802,7 @@ async def key_collection_summary(
 
         raise
 
-    except Exception as ex:
+    except Exception:
 
         print(
             traceback.format_exc()
@@ -714,5 +810,5 @@ async def key_collection_summary(
 
         raise HTTPException(
             status_code=500,
-            detail=str(ex)
+            detail="Failed to generate key collection summary"
         )

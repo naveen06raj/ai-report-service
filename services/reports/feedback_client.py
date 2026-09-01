@@ -21,6 +21,8 @@ class FeedbackClient:
         self,
         login_id: int,
         property_id: int,
+        start_date: str,
+        end_date: str,
         authorization: str
     ) -> dict:
 
@@ -34,7 +36,9 @@ class FeedbackClient:
 
             payload = {
                 "login_id": login_id,
-                "property_id": property_id
+                "property_id": property_id,
+                "start_date": start_date,
+                "end_date": end_date
             }
 
             # ==================================================
@@ -53,6 +57,16 @@ class FeedbackClient:
             print(
                 "PROPERTY ID:",
                 property_id
+            )
+
+            print(
+                "START DATE:",
+                start_date
+            )
+
+            print(
+                "END DATE:",
+                end_date
             )
 
             print(
@@ -156,8 +170,13 @@ class FeedbackClient:
             print("=" * 80)
 
             return {
-                "feedback_options": feedback_options,
-                "feedback_list": feedback_list
+
+                "feedback_options":
+                    feedback_options,
+
+                "feedback_list":
+                    feedback_list
+
             }
 
         except requests.exceptions.RequestException as ex:

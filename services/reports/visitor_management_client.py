@@ -18,6 +18,8 @@ class VisitorManagementClient:
         self,
         login_id: int,
         property_id: int,
+        start_date: str,
+        end_date: str,
         authorization: str
     ) -> dict:
 
@@ -31,7 +33,9 @@ class VisitorManagementClient:
 
             payload = {
                 "login_id": login_id,
-                "property_id": property_id
+                "property_id": property_id,
+                "start_date": start_date,
+                "end_date": end_date
             }
 
             print("=" * 80)
@@ -46,6 +50,16 @@ class VisitorManagementClient:
             print(
                 "PROPERTY ID:",
                 property_id
+            )
+
+            print(
+                "START DATE:",
+                start_date
+            )
+
+            print(
+                "END DATE:",
+                end_date
             )
 
             print(
@@ -65,11 +79,6 @@ class VisitorManagementClient:
                 print(
                     "AUTHORIZATION IS EMPTY"
                 )
-
-            print(
-                "HEADERS:",
-                headers
-            )
 
             print(
                 "PAYLOAD:",
@@ -175,8 +184,13 @@ class VisitorManagementClient:
             print("=" * 80)
 
             return {
-                "visitor_summary": visitor_summary,
-                "visitor_types": visitor_types
+
+                "visitor_summary":
+                    visitor_summary,
+
+                "visitor_types":
+                    visitor_types
+
             }
 
         except requests.exceptions.RequestException as ex:
@@ -203,6 +217,16 @@ class VisitorManagementClient:
 
             raise Exception(
                 f"Visitor Management API Error: {str(ex)}"
+            )
+
+        except ValueError as ex:
+
+            logger.exception(
+                "Invalid JSON returned by Visitor Management API"
+            )
+
+            raise Exception(
+                f"Visitor Management API returned invalid JSON: {str(ex)}"
             )
 
         except Exception as ex:

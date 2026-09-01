@@ -60,6 +60,8 @@ class FinancialReportClient:
         self,
         login_id: int,
         property_id: int,
+        start_date: str,
+        end_date: str,
         authorization: str
     ) -> dict:
 
@@ -102,8 +104,8 @@ class FinancialReportClient:
                     "invoice_no": "",
                     "building": "",
                     "unit": "",
-                    "fromdate": "",
-                    "todate": "",
+                    "fromdate": start_date,
+                    "todate": end_date,
                     "status": ""
                 }
             )
@@ -138,6 +140,16 @@ class FinancialReportClient:
             print(
                 "Property ID     :",
                 property_id
+            )
+
+            print(
+                "Start Date      :",
+                start_date
+            )
+
+            print(
+                "End Date        :",
+                end_date
             )
 
             print(

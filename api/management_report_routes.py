@@ -79,7 +79,7 @@ router = APIRouter(
 # Helper Function
 # ==================================================
 
-def get_ids(request: dict):
+def get_request_data(request: dict):
 
     login_id = request.get(
         "login_id"
@@ -89,22 +89,59 @@ def get_ids(request: dict):
         "property_id"
     )
 
+    start_date = request.get(
+        "start_date"
+    )
+
+    end_date = request.get(
+        "end_date"
+    )
+
+    # ----------------------------------
+    # Required Fields
+    # ----------------------------------
+
     if not login_id:
+
         raise HTTPException(
             status_code=400,
             detail="login_id is required"
         )
 
     if not property_id:
+
         raise HTTPException(
             status_code=400,
             detail="property_id is required"
         )
 
+    if not start_date:
+
+        raise HTTPException(
+            status_code=400,
+            detail="start_date is required"
+        )
+
+    if not end_date:
+
+        raise HTTPException(
+            status_code=400,
+            detail="end_date is required"
+        )
+
+    # ----------------------------------
+    # Convert IDs
+    # ----------------------------------
+
     try:
 
-        login_id = int(login_id)
-        property_id = int(property_id)
+        login_id = int(
+            login_id
+        )
+
+        property_id = int(
+            property_id
+        )
 
     except (TypeError, ValueError):
 
@@ -113,7 +150,16 @@ def get_ids(request: dict):
             detail="login_id and property_id must be integers"
         )
 
-    return login_id, property_id
+    # ----------------------------------
+    # Return
+    # ----------------------------------
+
+    return (
+        login_id,
+        property_id,
+        start_date,
+        end_date
+    )
 
 
 # ==================================================
@@ -135,7 +181,12 @@ async def resident_feedback_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_data(
             request
         )
 
@@ -148,6 +199,8 @@ async def resident_feedback_management_report(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -194,6 +247,10 @@ async def resident_feedback_management_report(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "report": report
 
         }
@@ -205,6 +262,7 @@ async def resident_feedback_management_report(
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -232,7 +290,12 @@ async def facility_booking_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_data(
             request
         )
 
@@ -245,6 +308,8 @@ async def facility_booking_management_report(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -291,6 +356,10 @@ async def facility_booking_management_report(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "report": report
 
         }
@@ -302,6 +371,7 @@ async def facility_booking_management_report(
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -329,7 +399,12 @@ async def visitor_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_data(
             request
         )
 
@@ -342,6 +417,8 @@ async def visitor_management_report(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -388,6 +465,10 @@ async def visitor_management_report(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "report": report
 
         }
@@ -399,6 +480,7 @@ async def visitor_management_report(
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -426,7 +508,12 @@ async def financial_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_data(
             request
         )
 
@@ -444,6 +531,16 @@ async def financial_management_report(
             property_id
         )
 
+        print(
+            "START DATE:",
+            start_date
+        )
+
+        print(
+            "END DATE:",
+            end_date
+        )
+
         # -----------------------------------------
         # Financial APIs
         # -----------------------------------------
@@ -453,6 +550,8 @@ async def financial_management_report(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -499,6 +598,10 @@ async def financial_management_report(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "report": report
 
         }
@@ -510,6 +613,7 @@ async def financial_management_report(
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(
@@ -537,7 +641,12 @@ async def key_collection_management_report(
                 detail="Authorization header missing"
             )
 
-        login_id, property_id = get_ids(
+        (
+            login_id,
+            property_id,
+            start_date,
+            end_date
+        ) = get_request_data(
             request
         )
 
@@ -555,6 +664,16 @@ async def key_collection_management_report(
             property_id
         )
 
+        print(
+            "START DATE:",
+            start_date
+        )
+
+        print(
+            "END DATE:",
+            end_date
+        )
+
         # -----------------------------------------
         # Key Collection API
         # -----------------------------------------
@@ -564,6 +683,8 @@ async def key_collection_management_report(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -610,6 +731,10 @@ async def key_collection_management_report(
 
             "property_id": property_id,
 
+            "start_date": start_date,
+
+            "end_date": end_date,
+
             "report": report
 
         }
@@ -621,6 +746,7 @@ async def key_collection_management_report(
     except Exception as ex:
 
         import traceback
+
         traceback.print_exc()
 
         raise HTTPException(

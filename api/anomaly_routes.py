@@ -106,6 +106,14 @@ async def resident_feedback_anomaly(
             "property_id"
         )
 
+        start_date = request.get(
+            "start_date"
+        )
+
+        end_date = request.get(
+            "end_date"
+        )
+
         # ----------------------------------
         # Validation
         # ----------------------------------
@@ -124,6 +132,20 @@ async def resident_feedback_anomaly(
                 detail="property_id is required"
             )
 
+        if not start_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="start_date is required"
+            )
+
+        if not end_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="end_date is required"
+            )
+
         login_id = int(login_id)
         property_id = int(property_id)
 
@@ -136,6 +158,8 @@ async def resident_feedback_anomaly(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -169,6 +193,10 @@ async def resident_feedback_anomaly(
             "login_id": login_id,
 
             "property_id": property_id,
+
+            "start_date": start_date,
+
+            "end_date": end_date,
 
             "anomalies": anomalies
 
@@ -209,10 +237,6 @@ async def facility_booking_anomaly(
 
     try:
 
-        # ----------------------------------
-        # Authorization
-        # ----------------------------------
-
         if not authorization:
 
             raise HTTPException(
@@ -230,6 +254,14 @@ async def facility_booking_anomaly(
 
         property_id = request.get(
             "property_id"
+        )
+
+        start_date = request.get(
+            "start_date"
+        )
+
+        end_date = request.get(
+            "end_date"
         )
 
         # ----------------------------------
@@ -250,6 +282,20 @@ async def facility_booking_anomaly(
                 detail="property_id is required"
             )
 
+        if not start_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="start_date is required"
+            )
+
+        if not end_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="end_date is required"
+            )
+
         login_id = int(login_id)
         property_id = int(property_id)
 
@@ -262,6 +308,8 @@ async def facility_booking_anomaly(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
@@ -295,6 +343,10 @@ async def facility_booking_anomaly(
             "login_id": login_id,
 
             "property_id": property_id,
+
+            "start_date": start_date,
+
+            "end_date": end_date,
 
             "anomalies": anomalies
 
@@ -335,10 +387,6 @@ async def visitor_management_anomaly(
 
     try:
 
-        # ----------------------------------
-        # Authorization
-        # ----------------------------------
-
         if not authorization:
 
             raise HTTPException(
@@ -356,6 +404,14 @@ async def visitor_management_anomaly(
 
         property_id = request.get(
             "property_id"
+        )
+
+        start_date = request.get(
+            "start_date"
+        )
+
+        end_date = request.get(
+            "end_date"
         )
 
         # ----------------------------------
@@ -376,6 +432,20 @@ async def visitor_management_anomaly(
                 detail="property_id is required"
             )
 
+        if not start_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="start_date is required"
+            )
+
+        if not end_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="end_date is required"
+            )
+
         login_id = int(login_id)
         property_id = int(property_id)
 
@@ -388,13 +458,11 @@ async def visitor_management_anomaly(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
-
-        print("=" * 80)
-        print("VISITOR MANAGEMENT REPORT RECEIVED")
-        print("=" * 80)
 
         # ----------------------------------
         # Analytics
@@ -407,10 +475,6 @@ async def visitor_management_anomaly(
             )
         )
 
-        print("=" * 80)
-        print("VISITOR MANAGEMENT ANALYTICS CREATED")
-        print("=" * 80)
-
         # ----------------------------------
         # AI Anomaly Detection
         # ----------------------------------
@@ -422,10 +486,6 @@ async def visitor_management_anomaly(
             )
         )
 
-        print("=" * 80)
-        print("VISITOR MANAGEMENT ANOMALIES GENERATED")
-        print("=" * 80)
-
         return {
 
             "status": True,
@@ -433,6 +493,10 @@ async def visitor_management_anomaly(
             "login_id": login_id,
 
             "property_id": property_id,
+
+            "start_date": start_date,
+
+            "end_date": end_date,
 
             "anomalies": anomalies
 
@@ -451,15 +515,9 @@ async def visitor_management_anomaly(
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
 
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
@@ -479,14 +537,6 @@ async def financial_overview_anomaly(
 
     try:
 
-        print("=" * 80)
-        print("FINANCIAL ANOMALY API STARTED")
-        print("=" * 80)
-
-        # ----------------------------------
-        # Authorization
-        # ----------------------------------
-
         if not authorization:
 
             raise HTTPException(
@@ -506,14 +556,12 @@ async def financial_overview_anomaly(
             "property_id"
         )
 
-        print(
-            "LOGIN ID:",
-            login_id
+        start_date = request.get(
+            "start_date"
         )
 
-        print(
-            "PROPERTY ID:",
-            property_id
+        end_date = request.get(
+            "end_date"
         )
 
         # ----------------------------------
@@ -534,6 +582,20 @@ async def financial_overview_anomaly(
                 detail="property_id is required"
             )
 
+        if not start_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="start_date is required"
+            )
+
+        if not end_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="end_date is required"
+            )
+
         login_id = int(login_id)
         property_id = int(property_id)
 
@@ -546,13 +608,11 @@ async def financial_overview_anomaly(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
-
-        print("=" * 80)
-        print("FINANCIAL REPORT RECEIVED")
-        print("=" * 80)
 
         # ----------------------------------
         # Analytics
@@ -562,19 +622,6 @@ async def financial_overview_anomaly(
             FinancialAnalyzer()
             .analyze(
                 report_data
-            )
-        )
-
-        print("=" * 80)
-        print("FINANCIAL ANALYTICS CREATED")
-        print("=" * 80)
-
-        import json
-
-        print(
-            json.dumps(
-                analytics,
-                indent=4
             )
         )
 
@@ -589,10 +636,6 @@ async def financial_overview_anomaly(
             )
         )
 
-        print("=" * 80)
-        print("FINANCIAL ANOMALIES GENERATED")
-        print("=" * 80)
-
         return {
 
             "status": True,
@@ -600,6 +643,10 @@ async def financial_overview_anomaly(
             "login_id": login_id,
 
             "property_id": property_id,
+
+            "start_date": start_date,
+
+            "end_date": end_date,
 
             "anomalies": anomalies
 
@@ -618,15 +665,9 @@ async def financial_overview_anomaly(
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
 
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
@@ -646,14 +687,6 @@ async def key_collection_anomaly(
 
     try:
 
-        print("=" * 80)
-        print("KEY COLLECTION ANOMALY API STARTED")
-        print("=" * 80)
-
-        # ----------------------------------
-        # Authorization
-        # ----------------------------------
-
         if not authorization:
 
             raise HTTPException(
@@ -673,14 +706,12 @@ async def key_collection_anomaly(
             "property_id"
         )
 
-        print(
-            "LOGIN ID:",
-            login_id
+        start_date = request.get(
+            "start_date"
         )
 
-        print(
-            "PROPERTY ID:",
-            property_id
+        end_date = request.get(
+            "end_date"
         )
 
         # ----------------------------------
@@ -701,6 +732,20 @@ async def key_collection_anomaly(
                 detail="property_id is required"
             )
 
+        if not start_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="start_date is required"
+            )
+
+        if not end_date:
+
+            raise HTTPException(
+                status_code=400,
+                detail="end_date is required"
+            )
+
         login_id = int(login_id)
         property_id = int(property_id)
 
@@ -713,13 +758,11 @@ async def key_collection_anomaly(
             .get_report(
                 login_id=login_id,
                 property_id=property_id,
+                start_date=start_date,
+                end_date=end_date,
                 authorization=authorization
             )
         )
-
-        print("=" * 80)
-        print("KEY COLLECTION REPORT RECEIVED")
-        print("=" * 80)
 
         # ----------------------------------
         # Analytics
@@ -729,19 +772,6 @@ async def key_collection_anomaly(
             KeyCollectionAnalyzer()
             .analyze(
                 report_data
-            )
-        )
-
-        print("=" * 80)
-        print("KEY COLLECTION ANALYTICS CREATED")
-        print("=" * 80)
-
-        import json
-
-        print(
-            json.dumps(
-                analytics,
-                indent=4
             )
         )
 
@@ -756,10 +786,6 @@ async def key_collection_anomaly(
             )
         )
 
-        print("=" * 80)
-        print("KEY COLLECTION ANOMALIES GENERATED")
-        print("=" * 80)
-
         return {
 
             "status": True,
@@ -767,6 +793,10 @@ async def key_collection_anomaly(
             "login_id": login_id,
 
             "property_id": property_id,
+
+            "start_date": start_date,
+
+            "end_date": end_date,
 
             "anomalies": anomalies
 
@@ -785,15 +815,9 @@ async def key_collection_anomaly(
 
     except Exception as ex:
 
-        print("=" * 80)
-        print("GENERAL ERROR")
-        print("=" * 80)
-
         import traceback
 
         traceback.print_exc()
-
-        print("=" * 80)
 
         raise HTTPException(
             status_code=500,
