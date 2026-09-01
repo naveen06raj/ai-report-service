@@ -60,9 +60,9 @@ class FinancialReportClient:
         self,
         login_id: int,
         property_id: int,
-        start_date: str,
-        end_date: str,
-        authorization: str
+        authorization: str,
+        start_date: str = None,
+        end_date: str = None
     ) -> dict:
 
         try:
@@ -93,21 +93,32 @@ class FinancialReportClient:
             # Invoice Search
             # --------------------------------------------------
 
+            invoice_payload = {
+                "login_id": login_id,
+                "property_id": property_id,
+                "batch_file_no": "",
+                "invoice_no": "",
+                "building": "",
+                "unit": "",
+                "fromdate": "",
+                "todate": "",
+                "status": ""
+            }
+
+            # Add dates only when supplied
+            if start_date:
+
+                invoice_payload["fromdate"] = start_date
+
+            if end_date:
+
+                invoice_payload["todate"] = end_date
+
             invoice_search = self._post(
                 session=session,
                 url=self.INVOICE_SEARCH_URL,
                 headers=headers,
-                payload={
-                    "login_id": login_id,
-                    "property_id": property_id,
-                    "batch_file_no": "",
-                    "invoice_no": "",
-                    "building": "",
-                    "unit": "",
-                    "fromdate": start_date,
-                    "todate": end_date,
-                    "status": ""
-                }
+                payload=invoice_payload
             )
 
             # --------------------------------------------------
@@ -150,6 +161,11 @@ class FinancialReportClient:
             print(
                 "End Date        :",
                 end_date
+            )
+
+            print(
+                "Invoice Payload :",
+                invoice_payload
             )
 
             print(

@@ -10,7 +10,7 @@ class FacilityBookingAnalyzer:
     ) -> dict:
 
         # ----------------------------------
-        # Get Booking Data
+        # Validate Report Data
         # ----------------------------------
 
         if not isinstance(
@@ -21,13 +21,18 @@ class FacilityBookingAnalyzer:
                 "Expected report_data to be a dictionary"
             )
 
+        # ----------------------------------
+        # Get Booking Data
+        # ----------------------------------
+
         # Direct API response
         #
         # {
-        #   "response": 1,
-        #   "message": "Success",
-        #   "data": [...]
+        #     "response": 1,
+        #     "message": "Success",
+        #     "data": [...]
         # }
+
         if "data" in report_data:
 
             records = report_data.get(
@@ -38,10 +43,11 @@ class FacilityBookingAnalyzer:
         # Wrapped response
         #
         # {
-        #   "facility_bookings": {
-        #       "data": [...]
-        #   }
+        #     "facility_bookings": {
+        #         "data": [...]
+        #     }
         # }
+
         elif "facility_bookings" in report_data:
 
             facility_bookings_response = (
@@ -74,7 +80,9 @@ class FacilityBookingAnalyzer:
         # Counters
         # ----------------------------------
 
-        total_bookings = len(records)
+        total_bookings = len(
+            records
+        )
 
         status_counter = Counter()
 
@@ -87,6 +95,20 @@ class FacilityBookingAnalyzer:
         paid_bookings = 0
 
         free_bookings = 0
+
+        # ----------------------------------
+        # Status Mapping
+        # ----------------------------------
+
+        status_mapping = {
+
+            1: "Cancelled",
+
+            2: "Confirmed",
+
+            3: "New"
+
+        }
 
         # ----------------------------------
         # Process Bookings
@@ -142,18 +164,33 @@ class FacilityBookingAnalyzer:
             ] += 1
 
             # ----------------------------------
-            # Status
+            # Booking Status
             # ----------------------------------
 
             status = submission.get(
                 "status"
             )
 
-            if status is None:
-                status = "Unknown"
+            try:
+
+                status = int(
+                    status
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
+                status = None
+
+            status_name = status_mapping.get(
+                status,
+                "Unknown"
+            )
 
             status_counter[
-                str(status)
+                status_name
             ] += 1
 
             # ----------------------------------
@@ -189,13 +226,19 @@ class FacilityBookingAnalyzer:
             # Revenue
             # ----------------------------------
 
-            booking_fee = submission.get(
-                "booking_fee"
-            ) or 0
+            booking_fee = (
+                submission.get(
+                    "booking_fee"
+                )
+                or 0
+            )
 
-            deposit_fee = submission.get(
-                "deposit_fee"
-            ) or 0
+            deposit_fee = (
+                submission.get(
+                    "deposit_fee"
+                )
+                or 0
+            )
 
             try:
 
@@ -229,6 +272,10 @@ class FacilityBookingAnalyzer:
             )
 
             total_revenue += amount
+
+            # ----------------------------------
+            # Paid / Free
+            # ----------------------------------
 
             if amount > 0:
 
@@ -280,7 +327,10 @@ class FacilityBookingAnalyzer:
 
         if facility_counter:
 
-            top_facility_name, top_count = (
+            (
+                top_facility_name,
+                top_count
+            ) = (
                 facility_counter.most_common(1)[0]
             )
 
@@ -342,7 +392,7 @@ class FacilityBookingAnalyzer:
             })
 
         # ----------------------------------
-        # Final Result
+        # Final Analytics
         # ----------------------------------
 
         return {

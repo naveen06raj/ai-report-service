@@ -9,9 +9,9 @@ class FeedbackReportService:
         self,
         login_id: int,
         property_id: int,
-        start_date: str,
-        end_date: str,
-        authorization: str
+        authorization: str,
+        start_date: str = None,
+        end_date: str = None
     ) -> dict:
 
         try:

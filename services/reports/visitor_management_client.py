@@ -18,9 +18,9 @@ class VisitorManagementClient:
         self,
         login_id: int,
         property_id: int,
-        start_date: str,
-        end_date: str,
-        authorization: str
+        authorization: str,
+        start_date: str = None,
+        end_date: str = None
     ) -> dict:
 
         try:
@@ -31,12 +31,21 @@ class VisitorManagementClient:
                 "Content-Type": "application/x-www-form-urlencoded"
             }
 
+            # ----------------------------------
+            # Payload
+            # ----------------------------------
+
             payload = {
                 "login_id": login_id,
-                "property_id": property_id,
-                "start_date": start_date,
-                "end_date": end_date
+                "property_id": property_id
             }
+
+            # Dates are optional
+            if start_date:
+                payload["start_date"] = start_date
+
+            if end_date:
+                payload["end_date"] = end_date
 
             print("=" * 80)
             print("VISITOR MANAGEMENT REQUEST")
@@ -66,19 +75,6 @@ class VisitorManagementClient:
                 "AUTH EXISTS:",
                 authorization is not None
             )
-
-            if authorization:
-
-                print(
-                    "AUTH PREFIX:",
-                    authorization[:40] + "..."
-                )
-
-            else:
-
-                print(
-                    "AUTHORIZATION IS EMPTY"
-                )
 
             print(
                 "PAYLOAD:",
@@ -184,13 +180,11 @@ class VisitorManagementClient:
             print("=" * 80)
 
             return {
-
                 "visitor_summary":
                     visitor_summary,
 
                 "visitor_types":
                     visitor_types
-
             }
 
         except requests.exceptions.RequestException as ex:
