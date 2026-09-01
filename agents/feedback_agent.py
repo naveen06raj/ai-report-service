@@ -72,6 +72,26 @@ def feedback_node(state):
             )
 
         # ----------------------------------
+        # Simple Greeting
+        # ----------------------------------
+
+        greeting = question.strip().lower()
+
+        if greeting in [
+            "hi",
+            "hello",
+            "hey",
+            "hi there",
+            "hello there"
+        ]:
+
+            state["answer"] = (
+                "Hi! How can I help you with Feedback?"
+            )
+
+            return state
+
+        # ----------------------------------
         # Get Feedback Data
         # ----------------------------------
 

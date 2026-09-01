@@ -72,6 +72,26 @@ def visitor_management_node(state):
             )
 
         # ----------------------------------
+        # Simple Greeting
+        # ----------------------------------
+
+        greeting = question.strip().lower()
+
+        if greeting in [
+            "hi",
+            "hello",
+            "hey",
+            "hi there",
+            "hello there"
+        ]:
+
+            state["answer"] = (
+                "Hi! How can I help you with Visitor Management?"
+            )
+
+            return state
+
+        # ----------------------------------
         # Get Visitor Management Report
         # ----------------------------------
 
