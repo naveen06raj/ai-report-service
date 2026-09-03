@@ -7,8 +7,8 @@ class KeyCollectionAnalyzer:
     STATUS_MAP = {
         0: "New",
         1: "Cancelled",
-        2: "On Schedule",
-        3: "Done"
+        2: "Pending",
+        3: "Collected"
     }
 
     @staticmethod
@@ -279,8 +279,8 @@ class KeyCollectionAnalyzer:
         # Completion Rate
         # ==================================================
 
-        done_count = status_counter.get(
-            "Done",
+        collected_count = status_counter.get(
+            "Collected",
             0
         )
 
@@ -288,7 +288,7 @@ class KeyCollectionAnalyzer:
 
             round(
                 (
-                    done_count
+                    collected_count
                     / total_submissions
                 ) * 100,
                 2
