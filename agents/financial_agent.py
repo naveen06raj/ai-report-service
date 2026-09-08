@@ -229,20 +229,17 @@ def financial_node(
         )
 
         # ----------------------------------
-        # Parse Response
+        # Parse Response as Plain Text
         # ----------------------------------
 
         answer = (
             LLMResponseParser()
-            .parse_json(
+            .parse_text(
                 response
             )
         )
 
-        state["answer"] = answer.get(
-            "answer",
-            ""
-        )
+        state["answer"] = answer
 
         return state
 
