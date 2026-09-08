@@ -5,6 +5,10 @@ from services.reports.financial_report_client import (
 
 class FinancialReportService:
 
+    # --------------------------------------------------
+    # Financial Report
+    # --------------------------------------------------
+
     def get_report(
         self,
         login_id: int,
@@ -15,20 +19,15 @@ class FinancialReportService:
     ) -> dict:
 
         try:
-
-            return (
-                FinancialReportClient()
-                .get_report(
-                    login_id=login_id,
-                    property_id=property_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    authorization=authorization
-                )
+            return FinancialReportClient().get_report(
+                login_id=login_id,
+                property_id=property_id,
+                authorization=authorization,
+                start_date=start_date,
+                end_date=end_date
             )
 
         except Exception as ex:
-
             raise Exception(
                 f"Failed to fetch financial report: {str(ex)}"
             )
@@ -46,19 +45,14 @@ class FinancialReportService:
     ) -> dict:
 
         try:
-
-            return (
-                FinancialReportClient()
-                .get_invoice_view(
-                    login_id=login_id,
-                    property_id=property_id,
-                    invoice_id=invoice_id,
-                    authorization=authorization
-                )
+            return FinancialReportClient().get_invoice_view(
+                login_id=login_id,
+                property_id=property_id,
+                invoice_id=invoice_id,
+                authorization=authorization
             )
 
         except Exception as ex:
-
             raise Exception(
                 f"Failed to fetch invoice view: {str(ex)}"
             )

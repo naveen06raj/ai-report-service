@@ -105,12 +105,11 @@ def financial_node(
         )
 
         # ----------------------------------
-        # Check whether the user is asking
-        # about a specific invoice
+        # Check for Specific Invoice Number
         # ----------------------------------
 
         invoice_match = re.search(
-            r"[A-Za-z0-9\-]+",
+            r"\b[A-Za-z]{2}\d{6,}-\d+\b",
             question
         )
 
@@ -118,25 +117,67 @@ def financial_node(
 
             invoice_no = invoice_match.group()
 
-            invoice_list = report_data.get(
-                "invoice_search",
+            # ----------------------------------
+            # Extract Invoices
+            # ----------------------------------
+
+            invoices_data = report_data.get(
+                "invoices",
                 {}
-            ).get(
-                "data",
-                []
             )
+
+            invoice_list = []
+
+            if isinstance(
+                invoices_data,
+                dict
+            ):
+
+                data = invoices_data.get(
+                    "data",
+                    {}
+                )
+
+                if isinstance(
+                    data,
+                    dict
+                ):
+
+                    invoice_list = data.get(
+                        "invoices",
+                        []
+                    )
+
+            elif isinstance(
+                invoices_data,
+                list
+            ):
+
+                invoice_list = invoices_data
+
+            # ----------------------------------
+            # Find Invoice
+            # ----------------------------------
 
             invoice_id = None
 
             for invoice in invoice_list:
 
+                if not isinstance(
+                    invoice,
+                    dict
+                ):
+                    continue
+
+                current_invoice_no = str(
+                    invoice.get(
+                        "invoice_no",
+                        ""
+                    )
+                ).strip()
+
                 if (
-                    str(
-                        invoice.get(
-                            "invoice_no",
-                            ""
-                        )
-                    ).lower()
+                    current_invoice_no.lower()
                     ==
                     invoice_no.lower()
                 ):
@@ -168,7 +209,7 @@ def financial_node(
                 ] = invoice_view
 
         # ----------------------------------
-        # Build Prompt
+        # Build Financial Chat Prompt
         # ----------------------------------
 
         prompt = (

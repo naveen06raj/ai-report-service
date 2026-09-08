@@ -6,21 +6,32 @@ logger = logging.getLogger(__name__)
 
 class FinancialReportClient:
 
-    PAYMENT_OVERVIEW_URL = (
-        "https://newaws.panzerplayground.com/api/ai/paymentoverview"
+    # ============================================================
+    # Main Financial API
+    # Used by:
+    # 1. Financial Overview AI Report
+    # 2. Financial Chatbot
+    # ============================================================
+
+    INVOICES_URL = (
+        "https://newaws.panzerplayground.com/api/ai/invoices"
+    )
+
+    # ============================================================
+    # Chatbot APIs
+    # ============================================================
+
+    INVOICE_VIEW_URL = (
+        "https://newaws.panzerplayground.com/api/ai/invoiceview"
     )
 
     INVOICE_SEARCH_URL = (
         "https://newaws.panzerplayground.com/api/ai/report_search"
     )
 
-    BATCH_LIST_URL = (
-        "https://newaws.panzerplayground.com/api/ai/batches"
-    )
-
-    INVOICE_VIEW_URL = (
-        "https://newaws.panzerplayground.com/api/ai/invoiceview"
-    )
+    # ============================================================
+    # Common POST method
+    # ============================================================
 
     def _post(
         self,
@@ -29,7 +40,6 @@ class FinancialReportClient:
         headers,
         payload
     ):
-
         response = session.post(
             url,
             headers=headers,
@@ -42,7 +52,6 @@ class FinancialReportClient:
         result = response.json()
 
         if result.get("response") != 1:
-
             raise Exception(
                 result.get(
                     "message",
@@ -52,11 +61,17 @@ class FinancialReportClient:
 
         return result
 
-    # --------------------------------------------------
-    # Financial Report
-    # --------------------------------------------------
+    # ============================================================
+    # Get Invoices
+    #
+    # Main API for Financial AI
+    #
+    # Dates are optional because:
+    # - Financial Report can use dates
+    # - Financial Chatbot may not need dates
+    # ============================================================
 
-    def get_report(
+    def get_invoices(
         self,
         login_id: int,
         property_id: int,
@@ -75,162 +90,123 @@ class FinancialReportClient:
 
             session = requests.Session()
 
-            # --------------------------------------------------
-            # Payment Overview
-            # --------------------------------------------------
-
-            payment_overview = self._post(
-                session=session,
-                url=self.PAYMENT_OVERVIEW_URL,
-                headers=headers,
-                payload={
-                    "login_id": login_id,
-                    "property_id": property_id
-                }
-            )
-
-            # --------------------------------------------------
-            # Invoice Search
-            # --------------------------------------------------
-
-            invoice_payload = {
+            payload = {
                 "login_id": login_id,
-                "property_id": property_id,
-                "batch_file_no": "",
-                "invoice_no": "",
-                "building": "",
-                "unit": "",
-                "fromdate": "",
-                "todate": "",
-                "status": ""
+                "property_id": property_id
             }
 
-            # Add dates only when supplied
+            # Add date filters only when provided.
             if start_date:
-
-                invoice_payload["fromdate"] = start_date
+                payload["start_date"] = start_date
 
             if end_date:
+                payload["end_date"] = end_date
 
-                invoice_payload["todate"] = end_date
+            logger.info(
+                "Calling Financial Invoices API"
+            )
 
-            invoice_search = self._post(
+            logger.info(
+                "Financial Invoices Payload: %s",
+                payload
+            )
+
+            result = self._post(
                 session=session,
-                url=self.INVOICE_SEARCH_URL,
+                url=self.INVOICES_URL,
                 headers=headers,
-                payload=invoice_payload
+                payload=payload
             )
 
-            # --------------------------------------------------
-            # Batch List
-            # --------------------------------------------------
-
-            batch_list = self._post(
-                session=session,
-                url=self.BATCH_LIST_URL,
-                headers=headers,
-                payload={
-                    "login_id": login_id,
-                    "property_id": property_id
-                }
+            invoices = (
+                result
+                .get("data", {})
+                .get("invoices", [])
             )
 
-            # --------------------------------------------------
-            # Debug
-            # --------------------------------------------------
-
-            print("=" * 80)
-            print("FINANCIAL REPORT")
-            print("=" * 80)
-
-            print(
-                "Login ID        :",
-                login_id
+            logger.info(
+                "Financial invoice records received: %s",
+                len(invoices)
             )
 
-            print(
-                "Property ID     :",
-                property_id
-            )
-
-            print(
-                "Start Date      :",
-                start_date
-            )
-
-            print(
-                "End Date        :",
-                end_date
-            )
-
-            print(
-                "Invoice Payload :",
-                invoice_payload
-            )
-
-            print(
-                "Payment Overview:",
-                payment_overview.get("response")
-            )
-
-            print(
-                "Invoice Records :",
-                len(
-                    invoice_search.get(
-                        "data",
-                        []
-                    )
-                )
-            )
-
-            print(
-                "Batch Records   :",
-                len(
-                    batch_list.get(
-                        "data",
-                        []
-                    )
-                )
-            )
-
-            print("=" * 80)
-
-            return {
-
-                "payment_overview":
-                    payment_overview,
-
-                "invoice_search":
-                    invoice_search,
-
-                "batch_list":
-                    batch_list
-
-            }
+            return result
 
         except requests.exceptions.RequestException as ex:
 
             logger.exception(
-                "Financial Report API request failed"
+                "Financial Invoices API request failed"
             )
 
             raise Exception(
-                f"Financial Report API Error: {str(ex)}"
+                f"Financial Invoices API Error: {str(ex)}"
             )
 
         except Exception as ex:
 
             logger.exception(
-                "Unexpected Financial Report client error"
+                "Unexpected Financial Invoices client error"
+            )
+
+            raise Exception(
+                f"Financial Invoices Client Error: {str(ex)}"
+            )
+
+    # ============================================================
+    # Financial Report
+    #
+    # Uses ONLY /api/ai/invoices as the main data source.
+    # ============================================================
+
+    def get_report(
+        self,
+        login_id: int,
+        property_id: int,
+        authorization: str,
+        start_date: str = None,
+        end_date: str = None
+    ) -> dict:
+
+        try:
+
+            invoices = self.get_invoices(
+                login_id=login_id,
+                property_id=property_id,
+                authorization=authorization,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            invoice_records = (
+                invoices
+                .get("data", {})
+                .get("invoices", [])
+            )
+
+            logger.info(
+                "Financial report data contains %s invoices",
+                len(invoice_records)
+            )
+
+            return {
+                "invoices": invoices
+            }
+
+        except Exception as ex:
+
+            logger.exception(
+                "Financial Report client error"
             )
 
             raise Exception(
                 f"Financial Report Client Error: {str(ex)}"
             )
 
-    # --------------------------------------------------
+    # ============================================================
     # Invoice View
-    # --------------------------------------------------
+    #
+    # Used by Financial Chatbot when the user asks about
+    # one specific invoice.
+    # ============================================================
 
     def get_invoice_view(
         self,
@@ -250,44 +226,29 @@ class FinancialReportClient:
 
             session = requests.Session()
 
-            invoice_view = self._post(
+            payload = {
+                "login_id": login_id,
+                "property_id": property_id,
+                "id": invoice_id
+            }
+
+            logger.info(
+                "Calling Invoice View API"
+            )
+
+            logger.info(
+                "Invoice View Payload: %s",
+                payload
+            )
+
+            result = self._post(
                 session=session,
                 url=self.INVOICE_VIEW_URL,
                 headers=headers,
-                payload={
-                    "login_id": login_id,
-                    "property_id": property_id,
-                    "id": invoice_id
-                }
+                payload=payload
             )
 
-            print("=" * 80)
-            print("INVOICE VIEW")
-            print("=" * 80)
-
-            print(
-                "Login ID      :",
-                login_id
-            )
-
-            print(
-                "Property ID   :",
-                property_id
-            )
-
-            print(
-                "Invoice ID    :",
-                invoice_id
-            )
-
-            print(
-                "Invoice Response:",
-                invoice_view.get("response")
-            )
-
-            print("=" * 80)
-
-            return invoice_view
+            return result
 
         except requests.exceptions.RequestException as ex:
 
@@ -307,4 +268,85 @@ class FinancialReportClient:
 
             raise Exception(
                 f"Invoice View Client Error: {str(ex)}"
+            )
+
+    # ============================================================
+    # Invoice Search
+    #
+    # Used by Financial Chatbot when the user wants to search
+    # or filter invoices.
+    # ============================================================
+
+    def search_invoices(
+        self,
+        login_id: int,
+        property_id: int,
+        authorization: str,
+        batch_file_no: str = "",
+        invoice_no: str = "",
+        building: str = "",
+        unit: str = "",
+        fromdate: str = "",
+        todate: str = "",
+        status: str = ""
+    ) -> dict:
+
+        try:
+
+            headers = {
+                "Authorization": authorization,
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+
+            session = requests.Session()
+
+            payload = {
+                "login_id": login_id,
+                "property_id": property_id,
+                "batch_file_no": batch_file_no,
+                "invoice_no": invoice_no,
+                "building": building,
+                "unit": unit,
+                "fromdate": fromdate,
+                "todate": todate,
+                "status": status
+            }
+
+            logger.info(
+                "Calling Invoice Search API"
+            )
+
+            logger.info(
+                "Invoice Search Payload: %s",
+                payload
+            )
+
+            result = self._post(
+                session=session,
+                url=self.INVOICE_SEARCH_URL,
+                headers=headers,
+                payload=payload
+            )
+
+            return result
+
+        except requests.exceptions.RequestException as ex:
+
+            logger.exception(
+                "Invoice Search API request failed"
+            )
+
+            raise Exception(
+                f"Invoice Search API Error: {str(ex)}"
+            )
+
+        except Exception as ex:
+
+            logger.exception(
+                "Unexpected Invoice Search client error"
+            )
+
+            raise Exception(
+                f"Invoice Search Client Error: {str(ex)}"
             )
