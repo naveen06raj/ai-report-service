@@ -9,9 +9,9 @@ class FacilityBookingReportService:
         self,
         login_id: int,
         property_id: int,
-        start_date: str,
-        end_date: str,
-        authorization: str
+        authorization: str,
+        start_date: str = None,
+        end_date: str = None
     ) -> dict:
 
         try:
@@ -21,9 +21,9 @@ class FacilityBookingReportService:
                 .get_report(
                     login_id=login_id,
                     property_id=property_id,
+                    authorization=authorization,
                     start_date=start_date,
-                    end_date=end_date,
-                    authorization=authorization
+                    end_date=end_date
                 )
             )
 
