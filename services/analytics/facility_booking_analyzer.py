@@ -97,6 +97,12 @@ class FacilityBookingAnalyzer:
         free_bookings = 0
 
         # ----------------------------------
+        # Individual Booking Records
+        # ----------------------------------
+
+        facility_records = []
+
+        # ----------------------------------
         # Status Mapping
         # ----------------------------------
 
@@ -159,8 +165,12 @@ class FacilityBookingAnalyzer:
                 or "Unknown"
             )
 
+            facility = str(
+                facility
+            )
+
             facility_counter[
-                str(facility)
+                facility
             ] += 1
 
             # ----------------------------------
@@ -201,13 +211,21 @@ class FacilityBookingAnalyzer:
                 "booking_date"
             )
 
+            parsed_booking_date = None
+
             if booking_date:
 
                 try:
 
                     date_obj = datetime.strptime(
-                        booking_date,
+                        str(booking_date),
                         "%Y-%m-%d"
+                    )
+
+                    parsed_booking_date = (
+                        date_obj.strftime(
+                            "%Y-%m-%d"
+                        )
                     )
 
                     month = date_obj.strftime(
@@ -220,7 +238,11 @@ class FacilityBookingAnalyzer:
 
                 except ValueError:
 
-                    pass
+                    # Keep the original value if it is
+                    # not in the expected date format.
+                    parsed_booking_date = str(
+                        booking_date
+                    )
 
             # ----------------------------------
             # Revenue
@@ -281,9 +303,51 @@ class FacilityBookingAnalyzer:
 
                 paid_bookings += 1
 
+                payment_type = "Paid"
+
             else:
 
                 free_bookings += 1
+
+                payment_type = "Free"
+
+            # ----------------------------------
+            # Safe Individual Facility Record
+            # ----------------------------------
+
+            facility_records.append(
+                {
+                    "facility":
+                        facility,
+
+                    "status":
+                        status_name,
+
+                    "booking_date":
+                        parsed_booking_date,
+
+                    "booking_fee":
+                        round(
+                            booking_fee,
+                            2
+                        ),
+
+                    "deposit_fee":
+                        round(
+                            deposit_fee,
+                            2
+                        ),
+
+                    "total_amount":
+                        round(
+                            amount,
+                            2
+                        ),
+
+                    "payment_type":
+                        payment_type
+                }
+            )
 
         # ----------------------------------
         # Facility Distribution
@@ -428,6 +492,13 @@ class FacilityBookingAnalyzer:
                 "free_bookings":
                     free_bookings
 
-            }
+            },
+
+            # ----------------------------------
+            # Individual Records
+            # ----------------------------------
+
+            "facility_records":
+                facility_records
 
         }
