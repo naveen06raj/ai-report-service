@@ -63,6 +63,10 @@ class ResidentFeedbackAnalyzer:
 
             monthly_counter = Counter()
 
+            # Safe, LLM-friendly individual feedback records.
+            # Do NOT include raw user/email/account data.
+            feedback_records = []
+
             total_rating = 0.0
 
             rated_feedback_count = 0
@@ -114,6 +118,23 @@ class ResidentFeedbackAnalyzer:
                     option = {}
 
                 # ----------------------------------
+                # Unit Information
+                # ----------------------------------
+
+                unit = (
+                    item.get(
+                        "unit_info"
+                    )
+                    or {}
+                )
+
+                if not isinstance(
+                    unit,
+                    dict
+                ):
+                    unit = {}
+
+                # ----------------------------------
                 # Get Option
                 # ----------------------------------
 
@@ -147,13 +168,19 @@ class ResidentFeedbackAnalyzer:
                 elif status == 1:
 
                     status_counter[
+                        "Resolved"
+                    ] += 1
+
+                elif status == 2:
+
+                    status_counter[
                         "Closed"
                     ] += 1
 
                 else:
 
                     status_counter[
-                        "In Progress"
+                        "Unknown"
                     ] += 1
 
                 # ----------------------------------
@@ -270,6 +297,64 @@ class ResidentFeedbackAnalyzer:
                         ):
 
                             pass
+
+                # ----------------------------------
+                # Safe Individual Feedback Record
+                # ----------------------------------
+
+                try:
+                    rating_value = (
+                        float(rating)
+                        if submission.get("rating") is not None
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    rating_value = None
+
+                feedback_records.append(
+                    {
+                        "feedback_id":
+                            submission.get("id"),
+
+                        "ticket":
+                            submission.get("ticket"),
+
+                        "subject":
+                            submission.get("subject") or "",
+
+                        "notes":
+                            submission.get("notes") or "",
+
+                        "category":
+                            category,
+
+                        "status":
+                            (
+                                "Open"
+                                if status == 0
+                                else
+                                "Resolved"
+                                if status == 1
+                                else
+                                "Closed"
+                                if status == 2
+                                else
+                                "Unknown"
+                            ),
+
+                        "unit":
+                            unit.get("unit"),
+
+                        "rating":
+                            rating_value,
+
+                        "remarks":
+                            submission.get("remarks"),
+
+                        "created_at":
+                            created_at
+                    }
+                )
 
             # ----------------------------------
             # Overall Average Rating
@@ -523,7 +608,18 @@ class ResidentFeedbackAnalyzer:
                     trend,
 
                 "trend_summary":
-                    trend_summary
+                    trend_summary,
+
+                # Individual records are included in a safe,
+                # compact structure so chat questions such as
+                # "list the feedback" can be answered.
+                "feedback_records":
+                    sorted(
+                        feedback_records,
+                        key=lambda x:
+                        x.get("created_at") or "",
+                        reverse=True
+                    )
 
             }
 
@@ -537,6 +633,11 @@ class ResidentFeedbackAnalyzer:
 
             print(
                 analytics
+            )
+
+            print(
+                "INDIVIDUAL FEEDBACK RECORDS:",
+                len(feedback_records)
             )
 
             print("=" * 80)
