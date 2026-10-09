@@ -1,5 +1,7 @@
 import logging
+import re
 from typing import Optional
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -19,6 +21,10 @@ from agents.module_router_agent import (
 
 from graph.report_graph import (
     run_report_graph,
+)
+
+from services.database.repositories.chat_repository import (
+    ChatRepository,
 )
 
 
@@ -76,6 +82,20 @@ CHAT_MODULES = [
         "label": "Defects",
     },
 ]
+
+
+# ============================================================
+# Business Modules
+# ============================================================
+
+BUSINESS_MODULES = {
+    "feedback",
+    "facilities",
+    "visitor",
+    "financial",
+    "key_collection",
+    "defect",
+}
 
 
 # ============================================================
@@ -141,12 +161,50 @@ MODULE_GREETINGS = {
 def get_module_options():
     """
     Return the six supported chatbot module options.
-
-    These options are displayed whenever the chatbot is opened
-    or when the user needs to select a module.
     """
 
     return CHAT_MODULES.copy()
+
+
+# ============================================================
+# Helper: Detect Simple Greeting
+# ============================================================
+
+def is_greeting(question: str) -> bool:
+    """
+    Detect simple greetings.
+
+    Greetings must be handled before router/database report
+    execution.
+    """
+
+    if not question:
+        return False
+
+    value = str(
+        question
+    ).strip().lower()
+
+    # Remove common trailing punctuation.
+    value = re.sub(
+        r"[!?,.]+$",
+        "",
+        value,
+    ).strip()
+
+    greetings = {
+        "hi",
+        "hello",
+        "hey",
+        "hi there",
+        "hello there",
+        "hey there",
+        "good morning",
+        "good afternoon",
+        "good evening",
+    }
+
+    return value in greetings
 
 
 # ============================================================
@@ -158,35 +216,37 @@ def get_greeting(
     selected_module: Optional[str] = None,
 ) -> str:
     """
-    Generate the chatbot opening/selection greeting.
+    Generate the chatbot greeting.
+
+    Selected module:
+        General module-specific greeting.
+
+    Module screen:
+        Screen-specific greeting.
 
     Main / Dashboard:
         Common greeting.
-
-    Module screen:
-        Module-specific greeting.
-
-    Selected module:
-        Acknowledge the selected module.
     """
 
     # --------------------------------------------------------
-    # User explicitly selected a module
+    # Selected Module
     # --------------------------------------------------------
 
     if selected_module:
         display_name = MODULE_DISPLAY_NAMES.get(
             selected_module,
-            selected_module.replace("_", " ").title(),
+            selected_module.replace(
+                "_",
+                " ",
+            ).title(),
         )
 
         return (
-            f"Hi! {display_name} is selected. "
-            f"You can ask me anything related to {display_name}."
+            f"Hi! How can I help you with {display_name}?"
         )
 
     # --------------------------------------------------------
-    # User opened chatbot from a supported module screen
+    # Current Screen
     # --------------------------------------------------------
 
     if screen_module:
@@ -196,7 +256,7 @@ def get_greeting(
         )
 
     # --------------------------------------------------------
-    # User opened chatbot from Main / Dashboard
+    # Main / Dashboard
     # --------------------------------------------------------
 
     return COMMON_GREETING
@@ -218,7 +278,9 @@ def normalize_screen_context(
     if module is None:
         return None
 
-    value = str(module).strip().lower()
+    value = str(
+        module
+    ).strip().lower()
 
     if value in {
         "",
@@ -230,11 +292,88 @@ def normalize_screen_context(
     }:
         return None
 
-    normalized = normalize_module(
+    return normalize_module(
         value
     )
 
-    return normalized
+
+# ============================================================
+# Helper: Parse Conversation ID
+# ============================================================
+
+def parse_conversation_id(
+    conversation_id,
+) -> Optional[UUID]:
+    """
+    Validate and convert a conversation_id into UUID.
+    """
+
+    if conversation_id is None:
+        return None
+
+    value = str(
+        conversation_id
+    ).strip()
+
+    if not value:
+        return None
+
+    try:
+        return UUID(value)
+
+    except ValueError as ex:
+        raise HTTPException(
+            status_code=400,
+            detail="conversation_id must be a valid UUID",
+        ) from ex
+
+
+# ============================================================
+# Helper: Determine Active Module
+# ============================================================
+
+def determine_active_module(
+    detected_module: Optional[str],
+    selected_module: Optional[str],
+    existing_active_module: Optional[str],
+    screen_module: Optional[str],
+) -> Optional[str]:
+    """
+    Determine the module that should remain active for the
+    conversation after the current request.
+
+    Fallback does not replace an existing business module.
+    """
+
+    # --------------------------------------------------------
+    # Current detected business module
+    # --------------------------------------------------------
+
+    if detected_module in BUSINESS_MODULES:
+        return detected_module
+
+    # --------------------------------------------------------
+    # Preserve existing conversation module
+    # --------------------------------------------------------
+
+    if existing_active_module in BUSINESS_MODULES:
+        return existing_active_module
+
+    # --------------------------------------------------------
+    # Selected module
+    # --------------------------------------------------------
+
+    if selected_module in BUSINESS_MODULES:
+        return selected_module
+
+    # --------------------------------------------------------
+    # Current screen
+    # --------------------------------------------------------
+
+    if screen_module in BUSINESS_MODULES:
+        return screen_module
+
+    return None
 
 
 # ============================================================
@@ -249,59 +388,31 @@ async def ask_ai(
     """
     Main production Agentic Chatbot endpoint.
 
-    Supported request concepts:
+    Conversation behavior:
 
-        screen_module
-            Module screen where chatbot was opened.
+    1. New Chat
+       conversation_id = null
 
-        selected_module
-            Module selected from chatbot buttons.
+       No previous history is loaded.
 
-        question
-            User's actual question.
+    2. First real question
+       A new conversation is created.
 
-    Examples
-    --------
+    3. Existing conversation
+       conversation_id is supplied.
 
-    Main screen opening:
+       Only that conversation's history is loaded.
 
-        {
-            "login_id": 66,
-            "property_id": 1,
-            "screen_module": "main",
-            "selected_module": null,
-            "question": ""
-        }
+    4. Follow-up question
+       Previous conversation history is supplied to the router.
 
-    Feedback screen opening:
+    5. The router can rewrite the question into a
+       self-contained question.
 
-        {
-            "login_id": 66,
-            "property_id": 1,
-            "screen_module": "feedback",
-            "selected_module": null,
-            "question": ""
-        }
+    6. The module graph receives the conversation context.
 
-    Button selection:
-
-        {
-            "login_id": 66,
-            "property_id": 1,
-            "screen_module": "feedback",
-            "selected_module": "visitor",
-            "question": ""
-        }
-
-    Actual question:
-
-        {
-            "login_id": 66,
-            "property_id": 1,
-            "screen_module": "feedback",
-            "selected_module": "feedback",
-            "question": "Show me key collections last 3 months"
-        }
+    7. User and assistant messages are saved to the same
+       conversation_id.
     """
 
     root_span = None
@@ -330,9 +441,9 @@ async def ask_ai(
             "property_id"
         )
 
-        # ----------------------------------------------------
-        # New production fields
-        # ----------------------------------------------------
+        conversation_id_value = request.get(
+            "conversation_id"
+        )
 
         screen_module = request.get(
             "screen_module"
@@ -346,15 +457,9 @@ async def ask_ai(
             "question"
         )
 
-        # ----------------------------------------------------
-        # Backward compatibility
-        #
-        # Existing frontend may still send:
-        #
-        #     "module": "feedback"
-        #
-        # We temporarily accept it as screen_module.
-        # ----------------------------------------------------
+        # ====================================================
+        # Backward Compatibility
+        # ====================================================
 
         if screen_module is None:
             screen_module = request.get(
@@ -377,17 +482,6 @@ async def ask_ai(
                 detail="property_id is required",
             )
 
-        # Question is intentionally NOT required here.
-        #
-        # Empty question means:
-        #
-        #     chatbot opening
-        #     OR
-        #     module button selection
-        #
-        # In those cases we return greeting + buttons.
-        # ====================================================
-
         # ====================================================
         # Convert IDs
         # ====================================================
@@ -401,46 +495,22 @@ async def ask_ai(
                 property_id
             )
 
-        except (TypeError, ValueError):
-
-            raise HTTPException(
-                status_code=400,
-                detail="login_id and property_id must be integers",
-            )
-
-        # ====================================================
-        # Normalize Context
-        # ====================================================
-
-        normalized_screen_module = normalize_screen_context(
-            screen_module
-        )
-
-        normalized_selected_module = normalize_module(
-            selected_module
-        )
-
-        # ----------------------------------------------------
-        # Validate selected module
-        # ----------------------------------------------------
-
-        if (
-            selected_module is not None
-            and str(selected_module).strip()
-            and normalized_selected_module is None
-        ):
+        except (
+            TypeError,
+            ValueError,
+        ) as ex:
 
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Invalid selected_module: "
-                    f"{selected_module}"
+                    "login_id and property_id "
+                    "must be integers"
                 ),
-            )
+            ) from ex
 
-        # ----------------------------------------------------
-        # Convert question to clean string
-        # ----------------------------------------------------
+        # ====================================================
+        # Normalize Question
+        # ====================================================
 
         if question is None:
             question = ""
@@ -450,39 +520,336 @@ async def ask_ai(
         ).strip()
 
         # ====================================================
-        # Debug
+        # Normalize Screen Module
+        # ====================================================
+
+        normalized_screen_module = (
+            normalize_screen_context(
+                screen_module
+            )
+        )
+
+        # ====================================================
+        # Normalize Selected Module
+        # ====================================================
+
+        normalized_selected_module = normalize_module(
+            selected_module
+        )
+
+        # ====================================================
+        # Validate Selected Module
+        # ====================================================
+
+        if (
+            selected_module is not None
+            and str(selected_module).strip()
+            and normalized_selected_module is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid selected_module: "
+                    f"{selected_module}"
+                ),
+            )
+
+        # ====================================================
+        # Parse Conversation ID
+        # ====================================================
+
+        conversation_id = parse_conversation_id(
+            conversation_id_value
+        )
+
+        # ====================================================
+        # Debug Request
         # ====================================================
 
         print("=" * 80)
         print("CHAT REQUEST")
         print("=" * 80)
-
+        print("LOGIN ID:", login_id)
+        print("PROPERTY ID:", property_id)
         print(
-            "LOGIN ID:",
-            login_id,
+            "CONVERSATION ID:",
+            conversation_id,
         )
-
-        print(
-            "PROPERTY ID:",
-            property_id,
-        )
-
         print(
             "SCREEN MODULE:",
             normalized_screen_module,
         )
-
         print(
             "SELECTED MODULE:",
             normalized_selected_module,
         )
-
         print(
             "QUESTION:",
             question,
         )
-
         print("=" * 80)
+
+        # ====================================================
+        # CASE 1:
+        # Greeting / Chatbot Opening / Module Selection
+        # ====================================================
+
+        # ----------------------------------------------------
+        # Opening / Button selection
+        #
+        # No database conversation is created here.
+        # ----------------------------------------------------
+
+        if not question:
+
+            greeting = get_greeting(
+                screen_module=normalized_screen_module,
+                selected_module=normalized_selected_module,
+            )
+
+            response_data = {
+                "status": True,
+                "type": "greeting",
+                "login_id": login_id,
+                "property_id": property_id,
+                "conversation_id": (
+                    str(conversation_id)
+                    if conversation_id
+                    else None
+                ),
+                "screen_module": normalized_screen_module,
+                "selected_module": normalized_selected_module,
+                "detected_module": None,
+                "routing_confidence": None,
+                "question": "",
+                "answer": greeting,
+                "options": get_module_options(),
+            }
+
+            print("=" * 80)
+            print("CHAT GREETING")
+            print("=" * 80)
+            print(
+                "CONVERSATION ID:",
+                conversation_id,
+            )
+            print(
+                "ANSWER:",
+                greeting,
+            )
+            print("=" * 80)
+
+            return response_data
+
+        # ----------------------------------------------------
+        # Simple greeting
+        #
+        # IMPORTANT:
+        # Do not call router.
+        # Do not call report graph.
+        # Do not save greeting as chat history.
+        # ----------------------------------------------------
+
+        if is_greeting(question):
+
+            greeting = get_greeting(
+                screen_module=normalized_screen_module,
+                selected_module=normalized_selected_module,
+            )
+
+            response_data = {
+                "status": True,
+                "type": "greeting",
+                "login_id": login_id,
+                "property_id": property_id,
+                "conversation_id": (
+                    str(conversation_id)
+                    if conversation_id
+                    else None
+                ),
+                "screen_module": normalized_screen_module,
+                "selected_module": normalized_selected_module,
+                "detected_module": None,
+                "routing_confidence": None,
+                "question": question,
+                "answer": greeting,
+                "options": get_module_options(),
+            }
+
+            print("=" * 80)
+            print("SIMPLE GREETING")
+            print("=" * 80)
+            print(
+                "QUESTION:",
+                question,
+            )
+            print(
+                "CONVERSATION ID:",
+                conversation_id,
+            )
+            print(
+                "ANSWER:",
+                greeting,
+            )
+            print("=" * 80)
+
+            return response_data
+
+        # ====================================================
+        # CASE 2:
+        # Real User Question
+        # ====================================================
+
+        # ====================================================
+        # Load / Create Conversation
+        # ====================================================
+
+        conversation_history = []
+        conversation_summary = None
+        existing_active_module = None
+
+        # ----------------------------------------------------
+        # Existing conversation
+        # ----------------------------------------------------
+
+        if conversation_id:
+
+            print("=" * 80)
+            print("LOADING EXISTING CONVERSATION")
+            print("=" * 80)
+            print(
+                "CONVERSATION ID:",
+                conversation_id,
+            )
+
+            try:
+                session = ChatRepository.get_or_create_session(
+                    login_id=login_id,
+                    property_id=property_id,
+                    conversation_id=conversation_id,
+                )
+
+            except ValueError as ex:
+
+                raise HTTPException(
+                    status_code=404,
+                    detail=str(ex),
+                ) from ex
+
+            # ------------------------------------------------
+            # Session context
+            # ------------------------------------------------
+
+            existing_active_module = normalize_module(
+                session.active_module
+            )
+
+            conversation_summary = (
+                session.conversation_summary
+            )
+
+            stored_screen_module = normalize_screen_context(
+                session.screen_module
+            )
+
+            stored_selected_module = normalize_module(
+                session.selected_module
+            )
+
+            # ------------------------------------------------
+            # Use request context first.
+            # Stored conversation context is fallback.
+            # ------------------------------------------------
+
+            effective_screen_module = (
+                normalized_screen_module
+                or stored_screen_module
+            )
+
+            effective_selected_module = (
+                normalized_selected_module
+                or stored_selected_module
+            )
+
+            # ------------------------------------------------
+            # Load previous messages
+            # ------------------------------------------------
+
+            conversation_history = (
+                ChatRepository.get_history_for_llm(
+                    conversation_id=conversation_id,
+                    login_id=login_id,
+                    property_id=property_id,
+                    limit=20,
+                )
+            )
+
+            print(
+                "PREVIOUS HISTORY MESSAGES:",
+                len(conversation_history),
+            )
+
+            print(
+                "EXISTING ACTIVE MODULE:",
+                existing_active_module,
+            )
+
+            print("=" * 80)
+
+        # ----------------------------------------------------
+        # New conversation
+        # ----------------------------------------------------
+
+        else:
+
+            print("=" * 80)
+            print("NEW CONVERSATION")
+            print("=" * 80)
+            print(
+                "No conversation_id supplied."
+            )
+            print(
+                "Previous history will NOT be used."
+            )
+
+            conversation_history = []
+            conversation_summary = None
+            existing_active_module = None
+
+            effective_screen_module = (
+                normalized_screen_module
+            )
+
+            effective_selected_module = (
+                normalized_selected_module
+            )
+
+            # ------------------------------------------------
+            # Create conversation now because the user has
+            # submitted the first real question.
+            #
+            # We do NOT create a session when the chatbot
+            # is merely opened.
+            # ------------------------------------------------
+
+            session = ChatRepository.create_session(
+                login_id=login_id,
+                property_id=property_id,
+                screen_module=effective_screen_module,
+                selected_module=effective_selected_module,
+                active_module=None,
+            )
+
+            conversation_id = (
+                session.conversation_id
+            )
+
+            print(
+                "NEW CONVERSATION CREATED:",
+                conversation_id,
+            )
+
+            print("=" * 80)
 
         # ====================================================
         # Langfuse Parent Trace
@@ -494,15 +861,24 @@ async def ask_ai(
             input={
                 "login_id": login_id,
                 "property_id": property_id,
-                "screen_module": normalized_screen_module,
-                "selected_module": normalized_selected_module,
+                "conversation_id": str(
+                    conversation_id
+                ),
+                "screen_module": (
+                    effective_screen_module
+                ),
+                "selected_module": (
+                    effective_selected_module
+                ),
+                "active_module": (
+                    existing_active_module
+                ),
                 "question": question,
+                "history_messages": len(
+                    conversation_history
+                ),
             },
         ) as root_span:
-
-            # Save for exception handling
-            # outside the with block.
-            root_span = root_span
 
             # ==================================================
             # Langfuse Attributes
@@ -513,124 +889,100 @@ async def ask_ai(
                 "agentic",
             ]
 
-            if normalized_screen_module:
+            if effective_screen_module:
                 trace_tags.append(
-                    normalized_screen_module
+                    effective_screen_module
                 )
 
-            if normalized_selected_module:
+            if effective_selected_module:
                 trace_tags.append(
-                    normalized_selected_module
+                    effective_selected_module
+                )
+
+            if existing_active_module:
+                trace_tags.append(
+                    existing_active_module
                 )
 
             with propagate_attributes(
                 user_id=str(login_id),
-                session_id=str(property_id),
+                session_id=str(
+                    conversation_id
+                ),
                 tags=trace_tags,
                 metadata={
                     "login_id": login_id,
                     "property_id": property_id,
-                    "screen_module": normalized_screen_module,
-                    "selected_module": normalized_selected_module,
+                    "conversation_id": str(
+                        conversation_id
+                    ),
+                    "screen_module": (
+                        effective_screen_module
+                    ),
+                    "selected_module": (
+                        effective_selected_module
+                    ),
+                    "active_module": (
+                        existing_active_module
+                    ),
                 },
             ):
 
                 # ==================================================
-                # CASE 1:
-                # Chatbot Opening / Module Button Selection
-                #
-                # No question = do NOT call Router Agent.
+                # Print Conversation Context
                 # ==================================================
 
-                if not question:
+                print("=" * 80)
+                print("CONVERSATION CONTEXT")
+                print("=" * 80)
 
-                    greeting = get_greeting(
-                        screen_module=normalized_screen_module,
-                        selected_module=normalized_selected_module,
-                    )
+                print(
+                    "CONVERSATION ID:",
+                    conversation_id,
+                )
 
-                    response_data = {
-                        "status": True,
-                        "type": "greeting",
-                        "login_id": login_id,
-                        "property_id": property_id,
-                        "screen_module": normalized_screen_module,
-                        "selected_module": normalized_selected_module,
-                        "detected_module": None,
-                        "routing_confidence": None,
-                        "question": "",
-                        "answer": greeting,
-                        "options": get_module_options(),
-                    }
+                print(
+                    "HISTORY COUNT:",
+                    len(conversation_history),
+                )
 
-                    # ----------------------------------------------
-                    # Langfuse output
-                    # ----------------------------------------------
+                print(
+                    "ACTIVE MODULE:",
+                    existing_active_module,
+                )
 
-                    root_span.update(
-                        output={
-                            "type": "greeting",
-                            "screen_module": normalized_screen_module,
-                            "selected_module": normalized_selected_module,
-                            "answer": greeting,
-                        }
-                    )
+                print(
+                    "CURRENT QUESTION:",
+                    question,
+                )
 
-                    print("=" * 80)
-                    print("CHAT GREETING")
-                    print("=" * 80)
-
-                    print(
-                        "SCREEN MODULE:",
-                        normalized_screen_module,
-                    )
-
-                    print(
-                        "SELECTED MODULE:",
-                        normalized_selected_module,
-                    )
-
-                    print(
-                        "ANSWER:",
-                        greeting,
-                    )
-
-                    print("=" * 80)
-
-                    return response_data
+                print("=" * 80)
 
                 # ==================================================
-                # CASE 2:
-                # Actual User Question
+                # Router
                 # ==================================================
 
                 print("=" * 80)
                 print("AGENTIC ROUTER")
                 print("=" * 80)
 
-                print(
-                    "QUESTION:",
-                    question,
-                )
-
-                print(
-                    "SCREEN MODULE:",
-                    normalized_screen_module,
-                )
-
-                print(
-                    "SELECTED MODULE:",
-                    normalized_selected_module,
-                )
-
-                # ----------------------------------------------
-                # Router Agent
-                # ----------------------------------------------
-
                 routing_result = route_question(
                     question=question,
-                    screen_module=normalized_screen_module,
-                    selected_module=normalized_selected_module,
+                    screen_module=(
+                        effective_screen_module
+                    ),
+                    selected_module=(
+                        effective_selected_module
+                    ),
+                    conversation_history=(
+                        conversation_history
+                    ),
+                    conversation_summary=(
+                        conversation_summary
+                    ),
+                    active_module=(
+                        existing_active_module
+                    ),
                 )
 
                 detected_module = routing_result.get(
@@ -644,6 +996,13 @@ async def ask_ai(
                 routing_reason = routing_result.get(
                     "reason"
                 )
+
+                rewritten_question = routing_result.get(
+                    "rewritten_question"
+                )
+
+                if not rewritten_question:
+                    rewritten_question = question
 
                 print(
                     "DETECTED MODULE:",
@@ -660,11 +1019,88 @@ async def ask_ai(
                     routing_reason,
                 )
 
+                print(
+                    "REWRITTEN QUESTION:",
+                    rewritten_question,
+                )
+
+                print("=" * 80)
+
+                # ==================================================
+                # Determine Active Conversation Module
+                # ==================================================
+
+                final_active_module = (
+                    determine_active_module(
+                        detected_module=detected_module,
+                        selected_module=(
+                            effective_selected_module
+                        ),
+                        existing_active_module=(
+                            existing_active_module
+                        ),
+                        screen_module=(
+                            effective_screen_module
+                        ),
+                    )
+                )
+
+                print("=" * 80)
+                print("ACTIVE CONVERSATION MODULE")
+                print("=" * 80)
+
+                print(
+                    "FINAL ACTIVE MODULE:",
+                    final_active_module,
+                )
+
+                print("=" * 80)
+
+                # ==================================================
+                # Save User Message
+                # ==================================================
+
+                ChatRepository.save_message(
+                    conversation_id=conversation_id,
+                    login_id=login_id,
+                    property_id=property_id,
+                    role="user",
+                    message=question,
+                    module=(
+                        detected_module
+                        if detected_module
+                        else final_active_module
+                    ),
+                )
+
+                print("=" * 80)
+                print("USER MESSAGE SAVED")
+                print("=" * 80)
+
+                print(
+                    "CONVERSATION ID:",
+                    conversation_id,
+                )
+
+                print(
+                    "MESSAGE:",
+                    question,
+                )
+
+                print(
+                    "MODULE:",
+                    detected_module,
+                )
+
                 print("=" * 80)
 
                 # ==================================================
                 # Run Module Graph
                 # ==================================================
+
+                print("=" * 80)
+                print("RUNNING REPORT GRAPH")
+                print("=" * 80)
 
                 response = run_report_graph(
                     question=question,
@@ -672,12 +1108,131 @@ async def ask_ai(
                     login_id=login_id,
                     property_id=property_id,
                     period=None,
-                    screen_module=normalized_screen_module,
-                    selected_module=normalized_selected_module,
-                    detected_module=detected_module,
-                    routing_confidence=routing_confidence,
-                    routing_reason=routing_reason,
+
+                    # Current context
+                    screen_module=(
+                        effective_screen_module
+                    ),
+
+                    selected_module=(
+                        effective_selected_module
+                    ),
+
+                    # Current router decision
+                    detected_module=(
+                        detected_module
+                    ),
+
+                    routing_confidence=(
+                        routing_confidence
+                    ),
+
+                    routing_reason=(
+                        routing_reason
+                    ),
+
+                    # Conversation context
+                    conversation_id=str(
+                        conversation_id
+                    ),
+
+                    conversation_history=(
+                        conversation_history
+                    ),
+
+                    conversation_summary=(
+                        conversation_summary
+                    ),
+
+                    active_module=(
+                        final_active_module
+                    ),
+
+                    # Context-aware question
+                    rewritten_question=(
+                        rewritten_question
+                    ),
                 )
+
+                print(
+                    "GRAPH RESPONSE:",
+                    response,
+                )
+
+                print("=" * 80)
+
+                # ==================================================
+                # Save Assistant Message
+                # ==================================================
+
+                ChatRepository.save_message(
+                    conversation_id=conversation_id,
+                    login_id=login_id,
+                    property_id=property_id,
+                    role="assistant",
+                    message=str(
+                        response
+                    ).strip(),
+                    module=(
+                        detected_module
+                        if detected_module
+                        in BUSINESS_MODULES
+                        else final_active_module
+                    ),
+                )
+
+                print("=" * 80)
+                print("ASSISTANT MESSAGE SAVED")
+                print("=" * 80)
+
+                print(
+                    "CONVERSATION ID:",
+                    conversation_id,
+                )
+
+                print(
+                    "MODULE:",
+                    detected_module,
+                )
+
+                print("=" * 80)
+
+                # ==================================================
+                # Update Conversation Context
+                # ==================================================
+
+                ChatRepository.update_session_context(
+                    conversation_id=conversation_id,
+                    login_id=login_id,
+                    property_id=property_id,
+
+                    screen_module=(
+                        effective_screen_module
+                    ),
+
+                    selected_module=(
+                        effective_selected_module
+                    ),
+
+                    active_module=(
+                        final_active_module
+                    ),
+
+                    # We intentionally do not generate a new
+                    # conversation summary here yet.
+                    conversation_summary=None,
+                )
+
+                print("=" * 80)
+                print("CONVERSATION CONTEXT UPDATED")
+                print("=" * 80)
+
+                print(
+                    "ACTIVE MODULE:",
+                    final_active_module,
+                )
+
+                print("=" * 80)
 
                 # ==================================================
                 # Langfuse Parent Output
@@ -685,15 +1240,30 @@ async def ask_ai(
 
                 root_span.update(
                     output={
-                        "detected_module": detected_module,
-                        "routing_confidence": routing_confidence,
-                        "routing_reason": routing_reason,
+                        "conversation_id": str(
+                            conversation_id
+                        ),
+                        "detected_module": (
+                            detected_module
+                        ),
+                        "routing_confidence": (
+                            routing_confidence
+                        ),
+                        "routing_reason": (
+                            routing_reason
+                        ),
+                        "rewritten_question": (
+                            rewritten_question
+                        ),
+                        "active_module": (
+                            final_active_module
+                        ),
                         "answer": response,
                     }
                 )
 
                 # ==================================================
-                # Trace Debug
+                # Langfuse Trace Debug
                 # ==================================================
 
                 print("=" * 80)
@@ -714,13 +1284,43 @@ async def ask_ai(
                 return {
                     "status": True,
                     "type": "answer",
+
                     "login_id": login_id,
                     "property_id": property_id,
-                    "screen_module": normalized_screen_module,
-                    "selected_module": normalized_selected_module,
-                    "detected_module": detected_module,
-                    "routing_confidence": routing_confidence,
+
+                    # IMPORTANT:
+                    # Frontend must save this ID and send the
+                    # same ID for follow-up questions.
+                    "conversation_id": str(
+                        conversation_id
+                    ),
+
+                    "screen_module": (
+                        effective_screen_module
+                    ),
+
+                    "selected_module": (
+                        effective_selected_module
+                    ),
+
+                    "detected_module": (
+                        detected_module
+                    ),
+
+                    "active_module": (
+                        final_active_module
+                    ),
+
+                    "routing_confidence": (
+                        routing_confidence
+                    ),
+
                     "question": question,
+
+                    "rewritten_question": (
+                        rewritten_question
+                    ),
+
                     "answer": response,
                 }
 
@@ -746,17 +1346,16 @@ async def ask_ai(
             detail=str(ex),
         )
 
-    finally:
+    # ========================================================
+    # Langfuse Flush
+    # ========================================================
 
-        # ====================================================
-        # Flush Langfuse
-        # ====================================================
+    finally:
 
         try:
             langfuse.flush()
 
         except Exception:
-
             logger.exception(
                 "Langfuse flush failed"
             )

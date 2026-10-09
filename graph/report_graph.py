@@ -1,7 +1,7 @@
 import logging
-from typing import Optional
+from typing import List, Optional
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from graph.state import ReportState
 
@@ -36,52 +36,92 @@ SUPPORTED_MODULES = {
 # ============================================================
 
 MODULE_ALIASES = {
+    # --------------------------------------------------------
     # Feedback
+    # --------------------------------------------------------
+
     "feedback": "feedback",
     "feedbacks": "feedback",
     "complaint": "feedback",
     "complaints": "feedback",
+    "resident_feedback": "feedback",
+    "resident feedback": "feedback",
 
+    # --------------------------------------------------------
     # Facilities
+    # --------------------------------------------------------
+
     "facility": "facilities",
     "facilities": "facilities",
     "facility_booking": "facilities",
     "facility_bookings": "facilities",
+    "facility booking": "facilities",
+    "facility bookings": "facilities",
     "booking": "facilities",
     "bookings": "facilities",
 
+    # --------------------------------------------------------
     # Visitor
+    # --------------------------------------------------------
+
     "visitor": "visitor",
     "visitors": "visitor",
     "visitor_management": "visitor",
+    "visitor management": "visitor",
     "visitor_registration": "visitor",
     "visitor_registrations": "visitor",
+    "visitor registration": "visitor",
+    "visitor registrations": "visitor",
+    "guest": "visitor",
+    "guests": "visitor",
 
+    # --------------------------------------------------------
     # Financial
+    # --------------------------------------------------------
+
     "financial": "financial",
     "finance": "financial",
     "financial_report": "financial",
     "financial_reports": "financial",
+    "financial report": "financial",
+    "financial reports": "financial",
     "payment": "financial",
     "payments": "financial",
     "collection": "financial",
     "collections": "financial",
     "invoice": "financial",
     "invoices": "financial",
+    "financial collection": "financial",
+    "financial collections": "financial",
+    "amount due": "financial",
+    "outstanding": "financial",
+    "outstanding amount": "financial",
+    "balances": "financial",
 
+    # --------------------------------------------------------
     # Key Collection
+    # --------------------------------------------------------
+
     "key": "key_collection",
     "keys": "key_collection",
     "key_collection": "key_collection",
     "key_collections": "key_collection",
     "keycollection": "key_collection",
     "keycollections": "key_collection",
+    "key collection": "key_collection",
+    "key collections": "key_collection",
+    "key handover": "key_collection",
 
+    # --------------------------------------------------------
     # Defect
+    # --------------------------------------------------------
+
     "defect": "defect",
     "defects": "defect",
     "maintenance_defect": "defect",
     "maintenance_defects": "defect",
+    "maintenance defect": "defect",
+    "maintenance defects": "defect",
 }
 
 
@@ -90,19 +130,21 @@ MODULE_ALIASES = {
 # ============================================================
 
 def normalize_module(
-    module: Optional[str]
+    module: Optional[str],
 ) -> Optional[str]:
     """
-    Convert a module name or alias to its canonical module name.
+    Convert a module name or alias to the canonical module name.
 
-    Main / Dashboard / Home are treated as having no active
-    business module.
+    Main / Dashboard / Home / None are treated as having
+    no active business module.
     """
 
     if module is None:
         return None
 
-    value = str(module).strip().lower()
+    value = str(
+        module
+    ).strip().lower()
 
     if not value:
         return None
@@ -116,7 +158,9 @@ def normalize_module(
     }:
         return None
 
-    normalized = MODULE_ALIASES.get(value)
+    normalized = MODULE_ALIASES.get(
+        value
+    )
 
     if normalized in SUPPORTED_MODULES:
         return normalized
@@ -129,7 +173,7 @@ def normalize_module(
 # ============================================================
 
 def get_active_module(
-    state: ReportState
+    state: ReportState,
 ) -> str:
     """
     Determine which module should be executed.
@@ -138,14 +182,17 @@ def get_active_module(
 
         1. detected_module
         2. selected_module
-        3. screen_module
-        4. fallback
+        3. active_module
+        4. screen_module
+        5. current_module
+        6. fallback
 
-    detected_module normally comes from the Module Router Agent.
+    detected_module normally comes from the Agentic Router.
+    active_module comes from the current conversation history.
     """
 
     # --------------------------------------------------------
-    # 1. Router decision
+    # 1. Current router decision
     # --------------------------------------------------------
 
     detected_module = normalize_module(
@@ -157,6 +204,7 @@ def get_active_module(
             "Using detected module: %s",
             detected_module,
         )
+
         return detected_module
 
     # --------------------------------------------------------
@@ -172,10 +220,27 @@ def get_active_module(
             "Using selected module: %s",
             selected_module,
         )
+
         return selected_module
 
     # --------------------------------------------------------
-    # 3. Current screen
+    # 3. Existing conversation active module
+    # --------------------------------------------------------
+
+    active_module = normalize_module(
+        state.get("active_module")
+    )
+
+    if active_module:
+        logger.info(
+            "Using active conversation module: %s",
+            active_module,
+        )
+
+        return active_module
+
+    # --------------------------------------------------------
+    # 4. Current screen
     # --------------------------------------------------------
 
     screen_module = normalize_module(
@@ -187,10 +252,11 @@ def get_active_module(
             "Using screen module: %s",
             screen_module,
         )
+
         return screen_module
 
     # --------------------------------------------------------
-    # 4. Backward compatibility with old state field
+    # 5. Backward compatibility
     # --------------------------------------------------------
 
     current_module = normalize_module(
@@ -202,10 +268,11 @@ def get_active_module(
             "Using legacy current_module: %s",
             current_module,
         )
+
         return current_module
 
     # --------------------------------------------------------
-    # 5. Nothing identified
+    # 6. Fallback
     # --------------------------------------------------------
 
     logger.info(
@@ -220,13 +287,15 @@ def get_active_module(
 # ============================================================
 
 def route_module(
-    state: ReportState
+    state: ReportState,
 ):
     """
     LangGraph conditional routing function.
     """
 
-    active_module = get_active_module(state)
+    active_module = get_active_module(
+        state
+    )
 
     logger.info(
         "Graph routing to module: %s",
@@ -241,20 +310,50 @@ def route_module(
 # ============================================================
 
 def start_node(
-    state: ReportState
+    state: ReportState,
 ):
     """
     Initial graph node.
 
-    The router itself is executed outside this graph.
-    This graph only executes the selected/detected module.
+    The module router is executed outside this graph.
+
+    This graph only executes the module selected by the router
+    or the available conversation/screen context.
     """
 
     logger.info(
-        "Report graph started | detected=%s | selected=%s | screen=%s",
+        "Report graph started | "
+        "conversation_id=%s | "
+        "detected=%s | "
+        "selected=%s | "
+        "active=%s | "
+        "screen=%s | "
+        "history_messages=%s",
+        state.get("conversation_id"),
         state.get("detected_module"),
         state.get("selected_module"),
+        state.get("active_module"),
         state.get("screen_module"),
+        len(
+            state.get(
+                "conversation_history",
+                [],
+            )
+        ),
+    )
+
+    logger.info(
+        "Original question: %s",
+        state.get(
+            "original_question"
+        ),
+    )
+
+    logger.info(
+        "Effective question: %s",
+        state.get(
+            "question"
+        ),
     )
 
     return state
@@ -414,30 +513,35 @@ def run_report_graph(
     detected_module: str = None,
     routing_confidence: float = None,
     routing_reason: str = None,
+    conversation_id: str = None,
+    conversation_history: Optional[List[dict]] = None,
+    conversation_summary: str = None,
+    active_module: str = None,
+    rewritten_question: str = None,
 ) -> str:
     """
     Execute the module-specific report graph.
 
-    Context:
+    Conversation fields:
 
-        screen_module
-            -> screen where chatbot was opened
+        conversation_id
+            Unique ID for one chat conversation.
 
-        selected_module
-            -> module explicitly selected by the user
+        conversation_history
+            Recent messages from this conversation only.
 
-        detected_module
-            -> module selected by the Router Agent
+        conversation_summary
+            Optional summary of the conversation context.
 
-    Priority:
+        active_module
+            Last active module in this conversation.
 
-        detected_module
-            ↓
-        selected_module
-            ↓
-        screen_module
-            ↓
-        fallback
+        rewritten_question
+            Context-aware version of the user's current question.
+
+    The existing module agents continue to use `state["question"]`.
+    Therefore, `question` is populated with the rewritten question
+    when one is available.
     """
 
     # ========================================================
@@ -456,78 +560,150 @@ def run_report_graph(
         detected_module
     )
 
+    normalized_active_module = normalize_module(
+        active_module
+    )
+
+    # ========================================================
+    # Conversation History
+    # ========================================================
+
+    if conversation_history is None:
+        conversation_history = []
+
+    # ========================================================
+    # Effective Question
+    # ========================================================
+
+    original_question = (
+        str(
+            question
+        ).strip()
+    )
+
+    effective_question = original_question
+
+    if rewritten_question is not None:
+        rewritten_value = str(
+            rewritten_question
+        ).strip()
+
+        if rewritten_value:
+            effective_question = rewritten_value
+
     # ========================================================
     # Build Graph State
     # ========================================================
 
-    state = {
+    state: ReportState = {
         # ----------------------------------------------------
         # Authentication
         # ----------------------------------------------------
+
         "authorization": authorization,
 
         # ----------------------------------------------------
         # Login / Property
         # ----------------------------------------------------
+
         "login_id": login_id,
         "property_id": property_id,
 
         # ----------------------------------------------------
         # Reporting Period
         # ----------------------------------------------------
+
         "period": period,
 
         # ----------------------------------------------------
-        # User Question
+        # Conversation
         # ----------------------------------------------------
-        "question": question,
+
+        "conversation_id": conversation_id,
+        "conversation_history": conversation_history,
+        "conversation_summary": conversation_summary,
+
+        # ----------------------------------------------------
+        # User Questions
+        # ----------------------------------------------------
+
+        "original_question": original_question,
+        "rewritten_question": effective_question,
+
+        # Existing agents read this field.
+        # Give them the context-aware question.
+        "question": effective_question,
 
         # ----------------------------------------------------
         # Chatbot Context
         # ----------------------------------------------------
+
         "screen_module": normalized_screen_module,
         "selected_module": normalized_selected_module,
         "detected_module": normalized_detected_module,
+        "active_module": normalized_active_module,
 
         # ----------------------------------------------------
         # Router Information
         # ----------------------------------------------------
+
         "routing_confidence": routing_confidence,
         "routing_reason": routing_reason,
 
         # ----------------------------------------------------
         # Backward Compatibility
-        #
-        # Some existing agents may still use current_module.
-        # Keep it populated with the screen module first and
-        # detected module as fallback.
         # ----------------------------------------------------
+
         "current_module": (
-            normalized_screen_module
-            or normalized_detected_module
+            normalized_detected_module
             or normalized_selected_module
+            or normalized_active_module
+            or normalized_screen_module
             or ""
         ),
 
         # ----------------------------------------------------
         # Final Answer
         # ----------------------------------------------------
+
         "answer": "",
     }
 
     # ========================================================
-    # Log Execution Information
+    # Execution Logging
     # ========================================================
 
     logger.info(
         "Running report graph | "
-        "screen=%s | selected=%s | detected=%s | "
-        "confidence=%s | question=%s",
+        "conversation_id=%s | "
+        "screen=%s | "
+        "selected=%s | "
+        "active=%s | "
+        "detected=%s | "
+        "history_messages=%s | "
+        "confidence=%s",
+        conversation_id,
         normalized_screen_module,
         normalized_selected_module,
+        normalized_active_module,
         normalized_detected_module,
+        len(conversation_history),
         routing_confidence,
-        question,
+    )
+
+    logger.info(
+        "Original question: %s",
+        original_question,
+    )
+
+    logger.info(
+        "Effective question: %s",
+        effective_question,
+    )
+
+    logger.info(
+        "Conversation summary available: %s",
+        bool(conversation_summary),
     )
 
     # ========================================================
@@ -541,7 +717,8 @@ def run_report_graph(
 
     except Exception as ex:
         logger.exception(
-            "Report graph execution failed"
+            "Report graph execution failed | conversation_id=%s",
+            conversation_id,
         )
 
         raise RuntimeError(
@@ -559,7 +736,9 @@ def run_report_graph(
     if answer is None:
         return "No response generated."
 
-    answer = str(answer).strip()
+    answer = str(
+        answer
+    ).strip()
 
     if not answer:
         return "No response generated."

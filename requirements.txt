@@ -8,3 +8,4 @@ langchain-core
 langchain-google-vertexai
 
 google-cloud-aiplatform
+psycopg2-binary

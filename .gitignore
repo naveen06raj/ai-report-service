@@ -1,17 +1,32 @@
+# Python cache files
 __pycache__/
+*.py[cod]
 *.pyc
 
+# Virtual environments
 venv/
 .venv/
 env/
 
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 
-.vscode/
-
-.idea/
-
-*.log
-
+# Google Cloud credentials
 application_default_credentials.json
 key.json
+
+# Local Cloud SQL Auth Proxy
+cloud-sql-proxy.exe
+
+# Temporary local database tests
+test_database.py
+test_chat_repository.py
+
+# IDE settings
+.vscode/
+.idea/
+
+# Log files
+*.log

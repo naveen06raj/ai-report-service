@@ -1,4 +1,4 @@
-from typing import Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 
 class ReportState(
@@ -27,40 +27,46 @@ class ReportState(
     period: str
 
     # ============================================================
+    # Conversation
+    # ============================================================
+
+    conversation_id: str
+
+    conversation_history: List[Dict[str, Any]]
+
+    conversation_summary: Optional[str]
+
+    # ============================================================
     # User Question
     # ============================================================
 
+    # Original question exactly as entered by the user.
+    original_question: str
+
+    # Context-aware question generated from the current question
+    # and previous conversation history.
+    rewritten_question: Optional[str]
+
+    # Existing agents continue reading this field.
+    # It will contain rewritten_question when available,
+    # otherwise the original question.
     question: str
 
     # ============================================================
     # Chatbot Context
-    #
-    # screen_module:
-    #   The screen from which the chatbot was opened.
-    #
-    #   Examples:
-    #       feedback
-    #       facilities
-    #       visitor
-    #       financial
-    #       key_collection
-    #       defect
-    #       None / main / dashboard
-    #
-    # selected_module:
-    #   The module explicitly selected by the user
-    #   through a chatbot button.
-    #
-    # detected_module:
-    #   The module detected by the Agentic Router
-    #   from the user's actual question.
     # ============================================================
 
+    # Screen from which chatbot was opened.
     screen_module: Optional[str]
 
+    # Module explicitly selected through chatbot buttons.
     selected_module: Optional[str]
 
+    # Module detected by router for the current question.
     detected_module: Optional[str]
+
+    # Module currently active in the conversation.
+    active_module: Optional[str]
 
     # ============================================================
     # Router Information
@@ -72,11 +78,6 @@ class ReportState(
 
     # ============================================================
     # Backward Compatibility
-    #
-    # Some existing agents may still read current_module.
-    # Keep this temporarily so existing module agents do not break.
-    #
-    # This should NOT be used for chatbot routing.
     # ============================================================
 
     current_module: Optional[str]

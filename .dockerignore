@@ -1,11 +1,40 @@
+# Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
-key.json
-.git
-.gitignore
+
+# Virtual environments
 summary/
+venv/
+.venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+key.json
+application_default_credentials.json
+
+# Local Cloud SQL Auth Proxy
+cloud-sql-proxy.exe
+
+# Temporary database test scripts
+test_database.py
+test_chat_repository.py
+
+# Git files
+.git/
+.gitignore
+
+# IDE settings
 .vscode/
 .idea/
+
+# Log files
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db

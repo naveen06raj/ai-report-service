@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from services.llm.gemini_client import generate
 
@@ -35,6 +35,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Feedback
     # --------------------------------------------------------
+
     "feedback": "feedback",
     "feedbacks": "feedback",
     "complaint": "feedback",
@@ -45,6 +46,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Facilities
     # --------------------------------------------------------
+
     "facility": "facilities",
     "facilities": "facilities",
     "facility_booking": "facilities",
@@ -57,6 +59,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Visitor
     # --------------------------------------------------------
+
     "visitor": "visitor",
     "visitors": "visitor",
     "visitor_management": "visitor",
@@ -71,6 +74,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Financial
     # --------------------------------------------------------
+
     "financial": "financial",
     "finance": "financial",
     "financial_report": "financial",
@@ -91,6 +95,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Key Collection
     # --------------------------------------------------------
+
     "key": "key_collection",
     "keys": "key_collection",
     "key_collection": "key_collection",
@@ -104,6 +109,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Defect
     # --------------------------------------------------------
+
     "defect": "defect",
     "defects": "defect",
     "maintenance_defect": "defect",
@@ -114,6 +120,7 @@ MODULE_ALIASES = {
     # --------------------------------------------------------
     # Fallback
     # --------------------------------------------------------
+
     "fallback": "fallback",
     "unknown": "fallback",
     "other": "fallback",
@@ -136,13 +143,136 @@ NO_MODULE_CONTEXTS = {
 
 
 # ============================================================
+# Format Conversation History
+# ============================================================
+
+def _format_conversation_history(
+    conversation_history: Optional[List[Dict[str, Any]]],
+    conversation_summary: Optional[str] = None,
+    active_module: Optional[str] = None,
+) -> str:
+    """
+    Format recent conversation context for the router.
+
+    Conversation history is used only to understand the current
+    question. It is NOT current report data.
+    """
+
+    sections: List[str] = []
+
+    # --------------------------------------------------------
+    # Active conversation module
+    # --------------------------------------------------------
+
+    if active_module:
+        sections.append(
+            "ACTIVE CONVERSATION MODULE:\n"
+            f"{active_module}"
+        )
+
+    # --------------------------------------------------------
+    # Conversation summary
+    # --------------------------------------------------------
+
+    if conversation_summary:
+        summary = str(
+            conversation_summary
+        ).strip()
+
+        if summary:
+            sections.append(
+                "CONVERSATION SUMMARY:\n"
+                f"{summary[:4000]}"
+            )
+
+    # --------------------------------------------------------
+    # No history
+    # --------------------------------------------------------
+
+    if not conversation_history:
+        sections.append(
+            "RECENT CONVERSATION:\n"
+            "No previous conversation messages."
+        )
+
+        return "\n\n".join(sections)
+
+    # --------------------------------------------------------
+    # Only use latest 20 messages
+    # --------------------------------------------------------
+
+    recent_history = conversation_history[-20:]
+
+    history_lines: List[str] = []
+
+    for item in recent_history:
+
+        if not isinstance(item, dict):
+            continue
+
+        role = str(
+            item.get("role", "unknown")
+        ).strip().lower()
+
+        message = str(
+            item.get("message", "")
+        ).strip()
+
+        if not message:
+            continue
+
+        # Prevent one huge message from consuming the prompt.
+        message = message[:2000]
+
+        role_label = {
+            "user": "USER",
+            "assistant": "ASSISTANT",
+        }.get(
+            role,
+            role.upper(),
+        )
+
+        module = item.get("module")
+
+        if module:
+            history_lines.append(
+                f"{role_label} [{module}]: {message}"
+            )
+        else:
+            history_lines.append(
+                f"{role_label}: {message}"
+            )
+
+    # --------------------------------------------------------
+    # Build history section
+    # --------------------------------------------------------
+
+    if history_lines:
+        sections.append(
+            "RECENT CONVERSATION:\n"
+            + "\n".join(history_lines)
+        )
+    else:
+        sections.append(
+            "RECENT CONVERSATION:\n"
+            "No usable previous conversation messages."
+        )
+
+    return "\n\n".join(sections)
+
+
+# ============================================================
 # Router Prompt
 # ============================================================
 
 ROUTER_PROMPT = """
 You are the module routing agent for a production Property Management AI system.
 
-Your ONLY job is to determine which module should handle the user's question.
+Your ONLY job is to:
+
+1. Determine which module should handle the user's CURRENT question.
+2. Rewrite the CURRENT question into a self-contained question when
+   previous conversation context is required.
 
 You must NOT answer the user's question.
 
@@ -152,61 +282,61 @@ AVAILABLE BUSINESS MODULES
 
 1. feedback
 
-   - resident feedback
-   - complaints
-   - ratings
-   - feedback categories
-   - feedback trends
-   - feedback submissions
+- resident feedback
+- complaints
+- ratings
+- feedback categories
+- feedback trends
+- feedback submissions
 
 2. facilities
 
-   - facility bookings
-   - booking status
-   - facility usage
-   - facility revenue
-   - booking trends
-   - facility availability
+- facility bookings
+- booking status
+- facility usage
+- facility revenue
+- booking trends
+- facility availability
 
 3. visitor
 
-   - visitors
-   - visitor registrations
-   - visitor purpose
-   - visitor status
-   - visitor trends
-   - guest registrations
+- visitors
+- visitor registrations
+- visitor purpose
+- visitor status
+- visitor trends
+- guest registrations
 
 4. financial
 
-   - financial reports
-   - payments
-   - financial collections
-   - invoices
-   - outstanding amounts
-   - excess payments
-   - balances
-   - amount due
+- financial reports
+- payments
+- financial collections
+- invoices
+- outstanding amounts
+- excess payments
+- balances
+- amount due
 
 5. key_collection
 
-   - key collections
-   - key collection status
-   - collected keys
-   - pending key collections
-   - cancelled key collections
-   - key collection appointments
-   - key handover
+- key collections
+- key collection status
+- collected keys
+- pending key collections
+- cancelled key collections
+- key collection appointments
+- key handover
 
 6. defect
 
-   - defects
-   - maintenance defects
-   - defect status
-   - defect category
-   - defect priority
-   - maintenance issues
-   - reported defects
+- defects
+- maintenance defects
+- defect status
+- defect category
+- defect priority
+- maintenance issues
+- reported defects
 
 ============================================================
 FALLBACK
@@ -216,44 +346,37 @@ Use "fallback" when:
 
 - The question is unrelated to the six supported modules.
 - The question is too unclear to safely identify a module.
-- The question does not contain enough information for routing.
+- The question cannot be resolved from the supplied conversation context.
 
 ============================================================
-CHATBOT CONTEXT
+CONVERSATION CONTEXT
 ============================================================
 
-The chatbot can have three kinds of context:
+There are four possible sources of context:
 
 A. CURRENT SCREEN MODULE
 
-This is the module screen from which the chatbot was opened.
-
-Examples:
-
-feedback
-facilities
-visitor
-financial
-key_collection
-defect
-
-The value may also be "none" when the chatbot was opened from
-the Main/Dashboard screen.
-
-------------------------------------------------------------
+The business module screen from which the chatbot was opened.
 
 B. SELECTED MODULE
 
-This is the module explicitly selected by the user through a
-chatbot option/button.
+The module explicitly selected by the user through a chatbot button.
 
-It may be "none" when the user has not selected a module.
+C. ACTIVE CONVERSATION MODULE
 
-------------------------------------------------------------
+The module currently associated with this conversation.
 
-C. USER QUESTION
+D. RECENT CONVERSATION HISTORY
 
-This is the actual question typed by the user.
+Recent user and assistant messages from THIS conversation only.
+
+IMPORTANT:
+
+- Use conversation history only to understand references in the CURRENT question.
+- Previous assistant answers are NOT current report data.
+- Never treat old numbers, counts, records, or report results as current data.
+- The selected business agent will fetch fresh report data for the current request.
+- Do not carry conversation history between different conversation IDs.
 
 ============================================================
 ROUTING PRIORITY
@@ -261,153 +384,264 @@ ROUTING PRIORITY
 
 Use this priority:
 
-1. USER QUESTION
+1. CURRENT USER QUESTION
 2. SELECTED MODULE
-3. CURRENT SCREEN MODULE
-4. FALLBACK
+3. ACTIVE CONVERSATION MODULE / RECENT CONVERSATION
+4. CURRENT SCREEN MODULE
+5. FALLBACK
 
-The user's actual question has the highest priority.
+The current user's explicit question always has the highest priority.
 
-If the question clearly belongs to a different module than the
-current screen or selected module, route to the module identified
-by the question.
+If the current question clearly belongs to another supported module,
+switch to that module even if the previous conversation, selected
+module, or current screen belongs to another module.
 
-Do NOT force the question to the current screen module.
+For follow-up questions such as:
+
+- "How many were there?"
+- "How many were cancelled?"
+- "List them."
+- "Show the closed ones."
+- "What about last month?"
+- "What about the previous month?"
+- "How much was collected?"
+
+use the recent conversation context to determine what the user is
+referring to.
 
 ============================================================
-EXAMPLES
+QUESTION REWRITING
 ============================================================
 
-Example 1
+Return "rewritten_question".
+
+The rewritten question must:
+
+- Preserve the current user's intent.
+- Be self-contained when context is required.
+- Resolve references such as "there", "them", "those", "it",
+  "the first one", "last month", etc. using the conversation context.
+- Preserve reporting periods already established in the conversation
+  unless the current question changes them.
+- Preserve the current business subject unless the user changes it.
+- Never invent facts.
+- Never invent report values.
+- Never answer the question.
+- Never add an unrelated subject.
+- Never use previous report values as current values.
+
+When the current question is already self-contained, return it
+essentially unchanged.
+
+============================================================
+EXAMPLE 1: FOLLOW-UP MODULE CONTEXT
+============================================================
+
+Previous conversation:
+
+USER:
+Show me visitors for the last 3 months.
+
+USER:
+How many were delivery visitors?
+
+Return:
+
+{{
+    "module": "visitor",
+    "confidence": 0.99,
+    "reason": "The current question continues the Visitor Management conversation.",
+    "rewritten_question": "How many delivery visitors were there in the last 3 months?"
+}}
+
+============================================================
+EXAMPLE 2: FOLLOW-UP DATE CHANGE
+============================================================
+
+Previous conversation:
+
+USER:
+How many visitors were there in the last 3 months?
+
+USER:
+What about last month?
+
+Return:
+
+{{
+    "module": "visitor",
+    "confidence": 0.99,
+    "reason": "The user is changing the reporting period for the current Visitor question.",
+    "rewritten_question": "How many visitors were there last month?"
+}}
+
+============================================================
+EXAMPLE 3: KEY COLLECTION FOLLOW-UP
+============================================================
+
+Previous conversation:
+
+USER:
+Show me key collections for the last 3 months.
+
+USER:
+How many were cancelled?
+
+Return:
+
+{{
+    "module": "key_collection",
+    "confidence": 0.99,
+    "reason": "The user is asking about cancelled key collections in the existing conversation.",
+    "rewritten_question": "How many key collections were cancelled in the last 3 months?"
+}}
+
+============================================================
+EXAMPLE 4: MODULE SWITCH
+============================================================
+
+Previous conversation:
+
+USER:
+Show me visitors for the last 3 months.
+
+CURRENT QUESTION:
+
+Show me financial reports.
+
+Return:
+
+{{
+    "module": "financial",
+    "confidence": 0.99,
+    "reason": "The current question explicitly changes the subject to Financial Reports.",
+    "rewritten_question": "Show me financial reports."
+}}
+
+============================================================
+EXAMPLE 5: SCREEN MODULE MUST NOT OVERRIDE QUESTION
+============================================================
 
 Current screen:
+
 feedback
 
 Selected module:
+
 feedback
 
 Question:
-"How many complaints did we receive this month?"
+
+Show me key collections for the last 3 months.
 
 Return:
-{{"module":"feedback","confidence":0.98,"reason":"The user is asking about resident complaints and feedback."}}
 
-------------------------------------------------------------
+{{
+    "module": "key_collection",
+    "confidence": 0.99,
+    "reason": "The current question is explicitly about key collections.",
+    "rewritten_question": "Show me key collections for the last 3 months."
+}}
 
-Example 2
+============================================================
+EXAMPLE 6: SELECTED MODULE
+============================================================
 
 Current screen:
+
 feedback
 
 Selected module:
-feedback
 
-Question:
-"Show me key collections for the last 3 months."
-
-Return:
-{{"module":"key_collection","confidence":0.99,"reason":"The question is explicitly about key collections."}}
-
-Do NOT select feedback because the user is currently on the
-Feedback screen.
-
-------------------------------------------------------------
-
-Example 3
-
-Current screen:
-feedback
-
-Selected module:
 visitor
 
 Question:
-"Show me visitors this month."
+
+How many visitors came last month?
 
 Return:
-{{"module":"visitor","confidence":0.99,"reason":"The user is asking about visitor records."}}
 
-------------------------------------------------------------
+{{
+    "module": "visitor",
+    "confidence": 0.99,
+    "reason": "The current question is about Visitor Management.",
+    "rewritten_question": "How many visitors came last month?"
+}}
 
-Example 4
+============================================================
+EXAMPLE 7: FINANCIAL
+============================================================
 
 Current screen:
+
 feedback
 
 Selected module:
+
 visitor
 
 Question:
-"How much was collected this month?"
+
+How much was collected this month?
 
 Return:
-{{"module":"financial","confidence":0.97,"reason":"The question is asking about financial collection amounts."}}
 
-The question overrides the selected Visitor module.
+{{
+    "module": "financial",
+    "confidence": 0.97,
+    "reason": "The current question asks about financial collections.",
+    "rewritten_question": "How much was collected this month?"
+}}
 
-------------------------------------------------------------
-
-Example 5
-
-Current screen:
-main
-
-Selected module:
-none
-
-Question:
-"Show me open defects."
-
-Return:
-{{"module":"defect","confidence":0.99,"reason":"The user is asking about defects and their status."}}
-
-------------------------------------------------------------
-
-Example 6
+============================================================
+EXAMPLE 8: UNRELATED QUESTION
+============================================================
 
 Current screen:
-main
 
-Selected module:
-none
-
-Question:
-"Show me financial collections this month."
-
-Return:
-{{"module":"financial","confidence":0.99,"reason":"The question is asking about financial collections."}}
-
-------------------------------------------------------------
-
-Example 7
-
-Current screen:
 financial
 
 Selected module:
+
 financial
 
 Question:
-"What is the weather today?"
+
+What is the weather today?
 
 Return:
-{{"module":"fallback","confidence":0.99,"reason":"The question is unrelated to the supported Property Management modules."}}
 
-------------------------------------------------------------
+{{
+    "module": "fallback",
+    "confidence": 0.99,
+    "reason": "The question is unrelated to the supported Property Management modules.",
+    "rewritten_question": "What is the weather today?"
+}}
 
-Example 8
+============================================================
+EXAMPLE 9: UNCLEAR QUESTION WITH NO HISTORY
+============================================================
 
 Current screen:
+
 feedback
 
 Selected module:
+
 feedback
 
 Question:
-"Show me the latest report."
+
+Show me the latest report.
 
 Return:
-{{"module":"fallback","confidence":0.70,"reason":"The question is too unclear to safely identify a specific module."}}
+
+{{
+    "module": "fallback",
+    "confidence": 0.70,
+    "reason": "The question is too unclear to identify a specific supported module.",
+    "rewritten_question": "Show me the latest report."
+}}
 
 ============================================================
 ROUTING RULES
@@ -427,16 +661,15 @@ ROUTING RULES
 - Never invent a module.
 - Never select a module outside the allowed list.
 - Never use security.
-- If the question explicitly identifies another supported module,
-  route to that module.
-- The user's actual question overrides the selected module when
-  the question clearly belongs to another module.
-- If the question clearly belongs to the selected module, use it.
-- If there is no selected module and the question clearly belongs
-  to the current screen module, use the current screen module.
-- If the current screen is Main/Dashboard and no module is selected,
-  use the user's question to determine the module.
-- Use fallback when the question is unrelated or ambiguous.
+- The current user's explicit question overrides all other context.
+- A clear module mention in the current question takes priority.
+- If the current question is a follow-up, use the conversation history.
+- Use the active conversation module when a follow-up does not explicitly
+  identify a new module and history supports that module.
+- Use the selected module when the current question clearly belongs to it.
+- Use the screen module only when the question does not identify a
+  different module and no stronger conversation context applies.
+- Use fallback when the question is unrelated or cannot safely be resolved.
 - Confidence must be between 0.0 and 1.0.
 - Keep the reason short.
 - Return ONLY valid JSON.
@@ -457,7 +690,19 @@ SELECTED MODULE
 {selected_module}
 
 ============================================================
-USER QUESTION
+ACTIVE CONVERSATION MODULE
+============================================================
+
+{active_module}
+
+============================================================
+CONVERSATION CONTEXT
+============================================================
+
+{conversation_context}
+
+============================================================
+CURRENT USER QUESTION
 ============================================================
 
 {question}
@@ -469,7 +714,8 @@ REQUIRED JSON
 {{
     "module": "module_name",
     "confidence": 0.0,
-    "reason": "short reason"
+    "reason": "short reason",
+    "rewritten_question": "self-contained current question"
 }}
 """
 
@@ -478,7 +724,9 @@ REQUIRED JSON
 # Normalize Module
 # ============================================================
 
-def normalize_module(module: Optional[str]) -> Optional[str]:
+def normalize_module(
+    module: Optional[str],
+) -> Optional[str]:
     """
     Normalize a module value into the canonical module name.
 
@@ -488,7 +736,9 @@ def normalize_module(module: Optional[str]) -> Optional[str]:
     if module is None:
         return None
 
-    value = str(module).strip().lower()
+    value = str(
+        module
+    ).strip().lower()
 
     if value in NO_MODULE_CONTEXTS:
         return None
@@ -500,7 +750,9 @@ def normalize_module(module: Optional[str]) -> Optional[str]:
 # Clean Router Response
 # ============================================================
 
-def _clean_router_response(response: str) -> str:
+def _clean_router_response(
+    response: str,
+) -> str:
     """
     Remove markdown code fences and surrounding whitespace.
     """
@@ -512,7 +764,7 @@ def _clean_router_response(response: str) -> str:
 
     cleaned = response.strip()
 
-    # Opening code fence
+    # Remove opening ```json or ```
     cleaned = re.sub(
         r"^```(?:json)?\s*",
         "",
@@ -520,7 +772,7 @@ def _clean_router_response(response: str) -> str:
         flags=re.IGNORECASE,
     )
 
-    # Closing code fence
+    # Remove closing ```
     cleaned = re.sub(
         r"\s*```$",
         "",
@@ -534,13 +786,19 @@ def _clean_router_response(response: str) -> str:
 # Extract JSON Object
 # ============================================================
 
-def _extract_json_object(text: str) -> dict:
+def _extract_json_object(
+    text: str,
+) -> dict:
     """
     Parse a JSON object from the LLM response.
 
-    Handles cases where the model accidentally returns
-    additional text around the JSON.
+    Handles responses where the model accidentally returns
+    surrounding text.
     """
+
+    # --------------------------------------------------------
+    # Try direct JSON first
+    # --------------------------------------------------------
 
     try:
         result = json.loads(text)
@@ -551,7 +809,10 @@ def _extract_json_object(text: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # Try extracting JSON object from surrounding text
+    # --------------------------------------------------------
+    # Try extracting JSON from surrounding text
+    # --------------------------------------------------------
+
     match = re.search(
         r"\{.*\}",
         text,
@@ -566,10 +827,14 @@ def _extract_json_object(text: str) -> dict:
     json_text = match.group(0)
 
     try:
-        result = json.loads(json_text)
+        result = json.loads(
+            json_text
+        )
+
     except json.JSONDecodeError as ex:
         raise ValueError(
-            f"Router returned invalid JSON: {str(ex)}"
+            "Router returned invalid JSON: "
+            f"{str(ex)}"
         ) from ex
 
     if not isinstance(result, dict):
@@ -584,22 +849,29 @@ def _extract_json_object(text: str) -> dict:
 # Parse Router Response
 # ============================================================
 
-def parse_router_response(response: str) -> dict:
+def parse_router_response(
+    response: str,
+) -> dict:
     """
     Parse and validate the router response.
 
-    Returns exactly:
+    Returns:
 
     {
         "module": "...",
         "confidence": 0.0,
-        "reason": "..."
+        "reason": "...",
+        "rewritten_question": "..."
     }
     """
 
-    cleaned = _clean_router_response(response)
+    cleaned = _clean_router_response(
+        response
+    )
 
-    result = _extract_json_object(cleaned)
+    result = _extract_json_object(
+        cleaned
+    )
 
     # --------------------------------------------------------
     # Required fields
@@ -611,21 +883,30 @@ def parse_router_response(response: str) -> dict:
         "reason",
     }
 
-    missing_fields = required_fields - set(result.keys())
+    missing_fields = (
+        required_fields
+        - set(result.keys())
+    )
 
     if missing_fields:
         raise ValueError(
             "Router response is missing required fields: "
-            + ", ".join(sorted(missing_fields))
+            + ", ".join(
+                sorted(missing_fields)
+            )
         )
 
     # --------------------------------------------------------
     # Module
     # --------------------------------------------------------
 
-    raw_module = result.get("module")
+    raw_module = result.get(
+        "module"
+    )
 
-    module = normalize_module(raw_module)
+    module = normalize_module(
+        raw_module
+    )
 
     if module not in ALLOWED_MODULES:
         raise ValueError(
@@ -636,18 +917,24 @@ def parse_router_response(response: str) -> dict:
     # Confidence
     # --------------------------------------------------------
 
-    raw_confidence = result.get("confidence")
+    raw_confidence = result.get(
+        "confidence"
+    )
 
     try:
-        confidence = float(raw_confidence)
+        confidence = float(
+            raw_confidence
+        )
+
     except (TypeError, ValueError) as ex:
         raise ValueError(
-            f"Router returned invalid confidence: {raw_confidence}"
+            "Router returned invalid confidence: "
+            f"{raw_confidence}"
         ) from ex
 
     if not 0.0 <= confidence <= 1.0:
         raise ValueError(
-            f"Router confidence must be between 0.0 and 1.0: "
+            "Router confidence must be between 0.0 and 1.0: "
             f"{confidence}"
         )
 
@@ -655,15 +942,37 @@ def parse_router_response(response: str) -> dict:
     # Reason
     # --------------------------------------------------------
 
-    reason = result.get("reason")
+    reason = result.get(
+        "reason"
+    )
 
     if reason is None:
         reason = ""
 
-    reason = str(reason).strip()
+    reason = str(
+        reason
+    ).strip()
 
     if not reason:
-        reason = "Module selected based on the user question."
+        reason = (
+            "Module selected based on the current question "
+            "and available conversation context."
+        )
+
+    # --------------------------------------------------------
+    # Rewritten Question
+    # --------------------------------------------------------
+
+    rewritten_question = result.get(
+        "rewritten_question"
+    )
+
+    if rewritten_question is None:
+        rewritten_question = ""
+
+    rewritten_question = str(
+        rewritten_question
+    ).strip()
 
     # --------------------------------------------------------
     # Return canonical response
@@ -671,8 +980,12 @@ def parse_router_response(response: str) -> dict:
 
     return {
         "module": module,
-        "confidence": round(confidence, 4),
+        "confidence": round(
+            confidence,
+            4,
+        ),
         "reason": reason,
+        "rewritten_question": rewritten_question,
     }
 
 
@@ -684,30 +997,28 @@ def route_question(
     question: str,
     screen_module: Optional[str] = None,
     selected_module: Optional[str] = None,
+    conversation_history: Optional[
+        List[Dict[str, Any]]
+    ] = None,
+    conversation_summary: Optional[str] = None,
+    active_module: Optional[str] = None,
 ) -> dict:
     """
-    Route the user's question to the correct module.
+    Route the current user question to the correct module.
 
-    Priority:
+    Routing priority:
 
-        User Question
-            ↓
+        Current User Question
+                ↓
         Selected Module
-            ↓
+                ↓
+        Active Conversation / History
+                ↓
         Current Screen
-            ↓
+                ↓
         Fallback
 
-    Parameters
-    ----------
-    question:
-        Actual user question.
-
-    screen_module:
-        Module of the screen where the chatbot was opened.
-
-    selected_module:
-        Module explicitly selected by the user.
+    Conversation history is used to resolve follow-up questions.
     """
 
     # --------------------------------------------------------
@@ -719,7 +1030,9 @@ def route_question(
             "Question is required for module routing."
         )
 
-    question = str(question).strip()
+    question = str(
+        question
+    ).strip()
 
     if not question:
         raise ValueError(
@@ -727,7 +1040,7 @@ def route_question(
         )
 
     # --------------------------------------------------------
-    # Normalize screen context
+    # Normalize screen module
     # --------------------------------------------------------
 
     normalized_screen_module = normalize_module(
@@ -735,7 +1048,7 @@ def route_question(
     )
 
     # --------------------------------------------------------
-    # Normalize selected context
+    # Normalize selected module
     # --------------------------------------------------------
 
     normalized_selected_module = normalize_module(
@@ -743,7 +1056,15 @@ def route_question(
     )
 
     # --------------------------------------------------------
-    # Warn only when a real value is invalid
+    # Normalize active conversation module
+    # --------------------------------------------------------
+
+    normalized_active_module = normalize_module(
+        active_module
+    )
+
+    # --------------------------------------------------------
+    # Warn about invalid screen module
     # --------------------------------------------------------
 
     if (
@@ -757,6 +1078,10 @@ def route_question(
             screen_module,
         )
 
+    # --------------------------------------------------------
+    # Warn about invalid selected module
+    # --------------------------------------------------------
+
     if (
         selected_module is not None
         and str(selected_module).strip().lower()
@@ -769,7 +1094,22 @@ def route_question(
         )
 
     # --------------------------------------------------------
-    # Context values sent to the prompt
+    # Warn about invalid active module
+    # --------------------------------------------------------
+
+    if (
+        active_module is not None
+        and str(active_module).strip().lower()
+        not in NO_MODULE_CONTEXTS
+        and normalized_active_module is None
+    ):
+        logger.warning(
+            "Unknown active conversation module received: %s",
+            active_module,
+        )
+
+    # --------------------------------------------------------
+    # Context values sent to prompt
     # --------------------------------------------------------
 
     screen_context = (
@@ -784,6 +1124,26 @@ def route_question(
         else "none"
     )
 
+    active_context = (
+        normalized_active_module
+        if normalized_active_module
+        else "none"
+    )
+
+    # --------------------------------------------------------
+    # Format conversation history
+    # --------------------------------------------------------
+
+    conversation_context = _format_conversation_history(
+        conversation_history=conversation_history,
+        conversation_summary=conversation_summary,
+        active_module=(
+            normalized_active_module
+            if normalized_active_module
+            else None
+        ),
+    )
+
     # --------------------------------------------------------
     # Build router prompt
     # --------------------------------------------------------
@@ -791,13 +1151,22 @@ def route_question(
     prompt = ROUTER_PROMPT.format(
         screen_module=screen_context,
         selected_module=selected_context,
+        active_module=active_context,
+        conversation_context=conversation_context,
         question=question,
     )
 
     logger.info(
-        "Running module router | screen=%s | selected=%s | question=%s",
+        "Running module router | "
+        "screen=%s | "
+        "selected=%s | "
+        "active=%s | "
+        "history_messages=%s | "
+        "question=%s",
         screen_context,
         selected_context,
+        active_context,
+        len(conversation_history or []),
         question,
     )
 
@@ -806,7 +1175,9 @@ def route_question(
     # --------------------------------------------------------
 
     try:
-        response = generate(prompt)
+        response = generate(
+            prompt
+        )
 
     except Exception as ex:
         logger.exception(
@@ -814,7 +1185,8 @@ def route_question(
         )
 
         raise RuntimeError(
-            f"Module router LLM call failed: {str(ex)}"
+            "Module router LLM call failed: "
+            f"{str(ex)}"
         ) from ex
 
     # --------------------------------------------------------
@@ -822,7 +1194,9 @@ def route_question(
     # --------------------------------------------------------
 
     try:
-        result = parse_router_response(response)
+        result = parse_router_response(
+            response
+        )
 
     except Exception as ex:
         logger.exception(
@@ -831,18 +1205,32 @@ def route_question(
         )
 
         raise RuntimeError(
-            f"Module router response parsing failed: {str(ex)}"
+            "Module router response parsing failed: "
+            f"{str(ex)}"
         ) from ex
 
     # --------------------------------------------------------
-    # Log routing result
+    # Fallback rewritten question
+    # --------------------------------------------------------
+
+    if not result.get(
+        "rewritten_question"
+    ):
+        result["rewritten_question"] = question
+
+    # --------------------------------------------------------
+    # Log result
     # --------------------------------------------------------
 
     logger.info(
-        "Router selected module=%s confidence=%.4f reason=%s",
+        "Router selected module=%s "
+        "confidence=%.4f "
+        "reason=%s "
+        "rewritten_question=%s",
         result["module"],
         result["confidence"],
         result["reason"],
+        result["rewritten_question"],
     )
 
     return result
