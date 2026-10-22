@@ -16,6 +16,8 @@ env/
 # Google Cloud credentials
 application_default_credentials.json
 key.json
+*.pem
+*.key
 
 # Local Cloud SQL Auth Proxy
 cloud-sql-proxy.exe
@@ -30,3 +32,11 @@ test_chat_repository.py
 
 # Log files
 *.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3

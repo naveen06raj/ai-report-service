@@ -576,6 +576,26 @@ class ResidentFeedbackAnalyzer:
                 )
 
             # ----------------------------------
+            # Prepare complete records and preview metadata
+            # ----------------------------------
+
+            sorted_feedback_records = sorted(
+                feedback_records,
+                key=lambda record: record.get("created_at") or "",
+                reverse=True,
+            )
+
+            feedback_record_display_limit = 5
+            feedback_record_count = len(sorted_feedback_records)
+            feedback_records_preview = sorted_feedback_records[
+                :feedback_record_display_limit
+            ]
+            feedback_records_remaining = max(
+                0,
+                feedback_record_count - len(feedback_records_preview),
+            )
+
+            # ----------------------------------
             # Final Analytics
             # ----------------------------------
 
@@ -583,6 +603,19 @@ class ResidentFeedbackAnalyzer:
 
                 "total_feedback":
                     total_feedback,
+
+                # Count and preview metadata for concise chatbot responses.
+                "feedback_record_count":
+                    feedback_record_count,
+
+                "feedback_record_display_limit":
+                    feedback_record_display_limit,
+
+                "feedback_records_preview":
+                    feedback_records_preview,
+
+                "feedback_records_remaining":
+                    feedback_records_remaining,
 
                 "average_rating":
                     average_rating,
@@ -614,12 +647,7 @@ class ResidentFeedbackAnalyzer:
                 # compact structure so chat questions such as
                 # "list the feedback" can be answered.
                 "feedback_records":
-                    sorted(
-                        feedback_records,
-                        key=lambda x:
-                        x.get("created_at") or "",
-                        reverse=True
-                    )
+                    sorted_feedback_records
 
             }
 
@@ -637,7 +665,19 @@ class ResidentFeedbackAnalyzer:
 
             print(
                 "INDIVIDUAL FEEDBACK RECORDS:",
-                len(feedback_records)
+                feedback_record_count
+            )
+            print(
+                "INITIAL DISPLAY LIMIT:",
+                feedback_record_display_limit
+            )
+            print(
+                "PREVIEW RECORDS:",
+                len(feedback_records_preview)
+            )
+            print(
+                "REMAINING RECORDS:",
+                feedback_records_remaining
             )
 
             print("=" * 80)

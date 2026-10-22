@@ -4,6 +4,7 @@ from typing import List, Optional
 from langgraph.graph import END, StateGraph
 
 from graph.state import ReportState
+from services.llm.gemini_client import generate
 
 from agents.feedback_agent import feedback_node
 from agents.facilities_agent import facilities_node
@@ -191,6 +192,11 @@ def get_active_module(
     active_module comes from the current conversation history.
     """
 
+    # History intent must take priority over the screen/active module.
+    if state.get("intent_type") == "conversation_history":
+        logger.info("Routing to conversation-history node.")
+        return "conversation_history"
+
     # --------------------------------------------------------
     # 1. Current router decision
     # --------------------------------------------------------
@@ -359,6 +365,110 @@ def start_node(
     return state
 
 
+
+
+# ============================================================
+# Conversation History Node
+# ============================================================
+
+def conversation_history_node(state: ReportState) -> dict:
+    """Answer questions about prior messages using Gemini."""
+    question = str(
+        state.get("original_question") or state.get("question") or ""
+    ).strip()
+    history = state.get("conversation_history") or []
+    summary = str(state.get("conversation_summary") or "").strip()
+
+    history_lines = []
+    for message in history[-20:]:
+        if not isinstance(message, dict):
+            continue
+        role = (
+            message.get("role")
+            or message.get("sender")
+            or message.get("message_type")
+            or "unknown"
+        )
+        content = (
+            message.get("content")
+            or message.get("message")
+            or message.get("text")
+            or message.get("body")
+            or ""
+        )
+        content = str(content).strip()
+        if content:
+            history_lines.append(f"{str(role).upper()}: {content[:2000]}")
+
+    history_text = "\n".join(history_lines) if history_lines else (
+        "No individual messages were available."
+    )
+
+    prompt = f"""
+You are a conversation-history assistant for a property-management
+reporting chatbot.
+
+Answer the current question using only the conversation summary and
+history supplied below.
+
+Rules:
+- If asked what the user previously asked, summarize earlier USER
+  messages in chronological order.
+- If asked what the assistant said earlier, summarize the relevant
+  ASSISTANT message.
+- Be concise and natural.
+- Do not invent messages or claim to remember information that is not
+  included in the supplied history.
+- Do not run a new report query.
+- If the information is unavailable, say that the available history
+  does not contain it.
+
+Conversation summary:
+{summary or "No summary available."}
+
+Recent conversation history:
+{history_text}
+
+Current user question:
+{question}
+
+Answer:
+""".strip()
+
+    try:
+        answer = generate(prompt)
+        if hasattr(answer, "content"):
+            answer = answer.content
+        if isinstance(answer, list):
+            answer = " ".join(
+                str(item.get("text", "")) if isinstance(item, dict)
+                else str(item)
+                for item in answer
+            )
+        answer = str(answer or "").strip()
+        if not answer:
+            answer = (
+                "I couldn't generate an answer from the available "
+                "conversation history. Please try again."
+            )
+        logger.info(
+            "Conversation history answered | conversation_id=%s",
+            state.get("conversation_id"),
+        )
+        return {"answer": answer}
+    except Exception:
+        logger.exception(
+            "Conversation history generation failed | conversation_id=%s",
+            state.get("conversation_id"),
+        )
+        return {
+            "answer": (
+                "I couldn't retrieve an answer from the conversation "
+                "history right now. Please try again."
+            )
+        }
+
+
 # ============================================================
 # Graph Definition
 # ============================================================
@@ -422,6 +532,11 @@ workflow.add_node(
     fallback_node,
 )
 
+workflow.add_node(
+    "conversation_history",
+    conversation_history_node,
+)
+
 
 # ============================================================
 # Entry Point
@@ -447,6 +562,7 @@ workflow.add_conditional_edges(
         "key_collection": "key_collection",
         "defect": "defect",
         "fallback": "fallback",
+        "conversation_history": "conversation_history",
     },
 )
 
@@ -490,6 +606,11 @@ workflow.add_edge(
     END,
 )
 
+workflow.add_edge(
+    "conversation_history",
+    END,
+)
+
 
 # ============================================================
 # Compile Graph
@@ -518,6 +639,7 @@ def run_report_graph(
     conversation_summary: str = None,
     active_module: str = None,
     rewritten_question: str = None,
+    intent_type: str = "report_query",
 ) -> str:
     """
     Execute the module-specific report graph.
@@ -649,6 +771,7 @@ def run_report_graph(
 
         "routing_confidence": routing_confidence,
         "routing_reason": routing_reason,
+        "intent_type": intent_type or "report_query",
 
         # ----------------------------------------------------
         # Backward Compatibility

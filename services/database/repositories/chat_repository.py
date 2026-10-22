@@ -1,29 +1,65 @@
+
 import logging
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from services.database.database import get_database_connection
+from services.database.database import (
+    get_database_connection,
+    get_database_mode,
+)
 from services.database.models import ChatMessage, ChatSession
-
 
 logger = logging.getLogger(__name__)
 
+# Dedicated table names for the AI Report Service.
+SESSION_TABLE = "report_chat_sessions"
+MESSAGE_TABLE = "report_chat_messages"
+
+SESSION_COLUMNS = (
+    "conversation_id, login_id, property_id, screen_module, "
+    "selected_module, active_module, conversation_summary, "
+    "created_at, updated_at, last_message_at, is_active"
+)
+
+MESSAGE_COLUMNS = (
+    "id, conversation_id, login_id, property_id, role, "
+    "message, module, created_at"
+)
+
+
+def _session(row) -> Optional[ChatSession]:
+    """Convert a database row into a ChatSession model."""
+    if row is None:
+        return None
+
+    values = list(row)
+
+    # CompatibleCursor normally converts this to UUID already.
+    if not isinstance(values[0], UUID):
+        values[0] = UUID(str(values[0]))
+
+    # MySQL and SQLite may return is_active as an integer.
+    values[10] = bool(values[10])
+
+    return ChatSession(*values)
+
+
+def _message(row) -> Optional[ChatMessage]:
+    """Convert a database row into a ChatMessage model."""
+    if row is None:
+        return None
+
+    values = list(row)
+
+    # CompatibleCursor normally converts this to UUID already.
+    if not isinstance(values[1], UUID):
+        values[1] = UUID(str(values[1]))
+
+    return ChatMessage(*values)
+
 
 class ChatRepository:
-    """
-    Repository responsible for chatbot conversation persistence.
-
-    Handles:
-        - Creating conversations
-        - Fetching conversations
-        - Saving user/assistant messages
-        - Fetching recent conversation history
-        - Updating active module/context
-    """
-
-    # ============================================================
-    # CHAT SESSION
-    # ============================================================
+    """Database operations for chatbot sessions and messages."""
 
     @staticmethod
     def create_session(
@@ -35,59 +71,41 @@ class ChatRepository:
         active_module: Optional[str] = None,
         conversation_summary: Optional[str] = None,
     ) -> ChatSession:
-        """
-        Create a new chatbot conversation session.
-
-        A conversation belongs to:
-            login_id + property_id + conversation_id
-        """
-
-        if conversation_id is None:
-            conversation_id = uuid4()
-
-        connection = None
+        conversation_id = conversation_id or uuid4()
+        mode = get_database_mode()
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
+            with conn.cursor() as cur:
+                if mode == "mysql":
+                    insert_prefix = "INSERT IGNORE INTO"
+                elif mode == "sqlite":
+                    insert_prefix = "INSERT OR IGNORE INTO"
+                else:
+                    insert_prefix = "INSERT INTO"
 
-            with connection.cursor() as cursor:
-                cursor.execute(
+                sql = f"""
+                    {insert_prefix} {SESSION_TABLE}
+                    (
+                        conversation_id,
+                        login_id,
+                        property_id,
+                        screen_module,
+                        selected_module,
+                        active_module,
+                        conversation_summary,
+                        is_active
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+                """
+
+                if mode in {"postgres", "postgresql"}:
+                    sql += """
+                        ON CONFLICT (conversation_id) DO NOTHING
                     """
-                    INSERT INTO chat_sessions (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        screen_module,
-                        selected_module,
-                        active_module,
-                        conversation_summary,
-                        is_active
-                    )
-                    VALUES (
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        TRUE
-                    )
-                    ON CONFLICT (conversation_id)
-                    DO NOTHING
-                    RETURNING
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        screen_module,
-                        selected_module,
-                        active_module,
-                        conversation_summary,
-                        created_at,
-                        updated_at,
-                        last_message_at,
-                        is_active
-                    """,
+
+                cur.execute(
+                    sql,
                     (
                         conversation_id,
                         login_id,
@@ -99,80 +117,33 @@ class ChatRepository:
                     ),
                 )
 
-                row = cursor.fetchone()
+                cur.execute(
+                    f"""
+                    SELECT {SESSION_COLUMNS}
+                    FROM {SESSION_TABLE}
+                    WHERE conversation_id = %s
+                      AND login_id = %s
+                      AND property_id = %s
+                    """,
+                    (conversation_id, login_id, property_id),
+                )
+                row = cur.fetchone()
 
-                # If conversation already existed, fetch it.
                 if row is None:
-                    cursor.execute(
-                        """
-                        SELECT
-                            conversation_id,
-                            login_id,
-                            property_id,
-                            screen_module,
-                            selected_module,
-                            active_module,
-                            conversation_summary,
-                            created_at,
-                            updated_at,
-                            last_message_at,
-                            is_active
-                        FROM chat_sessions
-                        WHERE conversation_id = %s
-                          AND login_id = %s
-                          AND property_id = %s
-                        """,
-                        (
-                            conversation_id,
-                            login_id,
-                            property_id,
-                        ),
+                    raise ValueError(
+                        "Conversation ID already exists or the conversation "
+                        "does not belong to this user and property."
                     )
 
-                    row = cursor.fetchone()
-
-                    if row is None:
-                        raise RuntimeError(
-                            "Conversation could not be created or retrieved."
-                        )
-
-            connection.commit()
-
-            return ChatSession(
-                conversation_id=row[0],
-                login_id=row[1],
-                property_id=row[2],
-                screen_module=row[3],
-                selected_module=row[4],
-                active_module=row[5],
-                conversation_summary=row[6],
-                created_at=row[7],
-                updated_at=row[8],
-                last_message_at=row[9],
-                is_active=row[10],
-            )
+            conn.commit()
+            return _session(row)
 
         except Exception:
-            if connection:
-                connection.rollback()
-
-            logger.exception(
-                "Failed to create chat session. "
-                "conversation_id=%s login_id=%s property_id=%s",
-                conversation_id,
-                login_id,
-                property_id,
-            )
-
+            conn.rollback()
+            logger.exception("Failed to create chat session")
             raise
-
         finally:
-            if connection:
-                connection.close()
-
-    # ============================================================
-    # GET CHAT SESSION
-    # ============================================================
+            conn.close()
 
     @staticmethod
     def get_session(
@@ -180,84 +151,24 @@ class ChatRepository:
         login_id: int,
         property_id: int,
     ) -> Optional[ChatSession]:
-        """
-        Retrieve a conversation only when it belongs to the
-        specified login_id and property_id.
-
-        This prevents one user/property from accessing another
-        conversation.
-        """
-
-        connection = None
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        screen_module,
-                        selected_module,
-                        active_module,
-                        conversation_summary,
-                        created_at,
-                        updated_at,
-                        last_message_at,
-                        is_active
-                    FROM chat_sessions
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT {SESSION_COLUMNS}
+                    FROM {SESSION_TABLE}
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
                     LIMIT 1
                     """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                    ),
+                    (conversation_id, login_id, property_id),
                 )
-
-                row = cursor.fetchone()
-
-            if not row:
-                return None
-
-            return ChatSession(
-                conversation_id=row[0],
-                login_id=row[1],
-                property_id=row[2],
-                screen_module=row[3],
-                selected_module=row[4],
-                active_module=row[5],
-                conversation_summary=row[6],
-                created_at=row[7],
-                updated_at=row[8],
-                last_message_at=row[9],
-                is_active=row[10],
-            )
-
-        except Exception:
-            logger.exception(
-                "Failed to retrieve chat session. "
-                "conversation_id=%s login_id=%s property_id=%s",
-                conversation_id,
-                login_id,
-                property_id,
-            )
-
-            raise
-
+                return _session(cur.fetchone())
         finally:
-            if connection:
-                connection.close()
-
-    # ============================================================
-    # GET OR CREATE SESSION
-    # ============================================================
+            conn.close()
 
     @staticmethod
     def get_or_create_session(
@@ -268,36 +179,19 @@ class ChatRepository:
         selected_module: Optional[str] = None,
         active_module: Optional[str] = None,
     ) -> ChatSession:
-        """
-        Return an existing conversation when conversation_id is
-        supplied and belongs to the user/property.
-
-        Otherwise create a new conversation.
-        """
-
-        # --------------------------------------------------------
-        # Existing conversation requested
-        # --------------------------------------------------------
-
         if conversation_id is not None:
-            existing_session = ChatRepository.get_session(
-                conversation_id=conversation_id,
-                login_id=login_id,
-                property_id=property_id,
+            session = ChatRepository.get_session(
+                conversation_id,
+                login_id,
+                property_id,
             )
 
-            if existing_session:
-                return existing_session
+            if session is None:
+                raise ValueError(
+                    "Conversation not found for the specified user and property."
+                )
 
-            # A conversation_id was supplied but does not belong
-            # to this login/property.
-            raise ValueError(
-                "Conversation not found for the specified user and property."
-            )
-
-        # --------------------------------------------------------
-        # Create new conversation
-        # --------------------------------------------------------
+            return session
 
         return ChatRepository.create_session(
             login_id=login_id,
@@ -308,10 +202,6 @@ class ChatRepository:
             active_module=active_module,
         )
 
-    # ============================================================
-    # SAVE MESSAGE
-    # ============================================================
-
     @staticmethod
     def save_message(
         conversation_id: UUID,
@@ -321,66 +211,38 @@ class ChatRepository:
         message: str,
         module: Optional[str] = None,
     ) -> ChatMessage:
-        """
-        Save one message in a conversation.
-
-        role should normally be:
-            user
-            assistant
-        """
-
         if role not in {"user", "assistant"}:
             raise ValueError(
                 "Invalid message role. Expected 'user' or 'assistant'."
             )
 
         if not message or not message.strip():
-            raise ValueError(
-                "Message cannot be empty."
-            )
+            raise ValueError("Message cannot be empty.")
 
-        connection = None
+        mode = get_database_mode()
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
-
-            with connection.cursor() as cursor:
-
-                # ------------------------------------------------
-                # Verify conversation ownership
-                # ------------------------------------------------
-
-                cursor.execute(
-                    """
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
                     SELECT 1
-                    FROM chat_sessions
+                    FROM {SESSION_TABLE}
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
                       AND is_active = TRUE
                     LIMIT 1
                     """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                    ),
+                    (conversation_id, login_id, property_id),
                 )
 
-                session_exists = cursor.fetchone()
+                if cur.fetchone() is None:
+                    raise ValueError("Conversation not found or inactive.")
 
-                if not session_exists:
-                    raise ValueError(
-                        "Conversation not found or inactive."
-                    )
-
-                # ------------------------------------------------
-                # Insert message
-                # ------------------------------------------------
-
-                cursor.execute(
-                    """
-                    INSERT INTO chat_messages (
+                insert_sql = f"""
+                    INSERT INTO {MESSAGE_TABLE}
+                    (
                         conversation_id,
                         login_id,
                         property_id,
@@ -388,92 +250,70 @@ class ChatRepository:
                         message,
                         module
                     )
-                    VALUES (
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s,
-                        %s
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """
+
+                if mode in {"postgres", "postgresql"}:
+                    cur.execute(
+                        insert_sql + " RETURNING id",
+                        (
+                            conversation_id,
+                            login_id,
+                            property_id,
+                            role,
+                            message.strip(),
+                            module,
+                        ),
                     )
-                    RETURNING
-                        id,
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        role,
-                        message,
-                        module,
-                        created_at
-                    """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        role,
-                        message.strip(),
-                        module,
-                    ),
-                )
+                    inserted_id = cur.fetchone()[0]
+                else:
+                    cur.execute(
+                        insert_sql,
+                        (
+                            conversation_id,
+                            login_id,
+                            property_id,
+                            role,
+                            message.strip(),
+                            module,
+                        ),
+                    )
+                    inserted_id = cur.lastrowid
 
-                row = cursor.fetchone()
-
-                # ------------------------------------------------
-                # Update session timestamps
-                # ------------------------------------------------
-
-                cursor.execute(
-                    """
-                    UPDATE chat_sessions
-                    SET
-                        updated_at = CURRENT_TIMESTAMP,
+                cur.execute(
+                    f"""
+                    UPDATE {SESSION_TABLE}
+                    SET updated_at = CURRENT_TIMESTAMP,
                         last_message_at = CURRENT_TIMESTAMP
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
                     """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                    ),
+                    (conversation_id, login_id, property_id),
                 )
 
-            connection.commit()
+                cur.execute(
+                    f"""
+                    SELECT {MESSAGE_COLUMNS}
+                    FROM {MESSAGE_TABLE}
+                    WHERE id = %s
+                    """,
+                    (inserted_id,),
+                )
+                row = cur.fetchone()
 
-            return ChatMessage(
-                id=row[0],
-                conversation_id=row[1],
-                login_id=row[2],
-                property_id=row[3],
-                role=row[4],
-                message=row[5],
-                module=row[6],
-                created_at=row[7],
-            )
+                if row is None:
+                    raise RuntimeError("Message was inserted but could not be retrieved.")
+
+            conn.commit()
+            return _message(row)
 
         except Exception:
-            if connection:
-                connection.rollback()
-
-            logger.exception(
-                "Failed to save chat message. "
-                "conversation_id=%s login_id=%s property_id=%s role=%s",
-                conversation_id,
-                login_id,
-                property_id,
-                role,
-            )
-
+            conn.rollback()
+            logger.exception("Failed to save chat message")
             raise
-
         finally:
-            if connection:
-                connection.close()
-
-    # ============================================================
-    # GET RECENT MESSAGES
-    # ============================================================
+            conn.close()
 
     @staticmethod
     def get_recent_messages(
@@ -482,88 +322,30 @@ class ChatRepository:
         property_id: int,
         limit: int = 20,
     ) -> List[ChatMessage]:
-        """
-        Get the most recent conversation messages.
-
-        The database query retrieves the newest messages first,
-        then returns them in chronological order.
-        """
-
-        if limit <= 0:
-            limit = 20
-
-        # Prevent unnecessarily large history requests.
-        limit = min(limit, 100)
-
-        connection = None
+        limit = min(max(int(limit), 1), 100)
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        id,
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        role,
-                        message,
-                        module,
-                        created_at
-                    FROM chat_messages
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT {MESSAGE_COLUMNS}
+                    FROM {MESSAGE_TABLE}
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
-                    ORDER BY created_at DESC
+                    ORDER BY created_at DESC, id DESC
                     LIMIT %s
                     """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        limit,
-                    ),
+                    (conversation_id, login_id, property_id, limit),
                 )
+                rows = cur.fetchall()
 
-                rows = cursor.fetchall()
-
-            # Convert newest-first result into chronological order.
-            rows.reverse()
-
-            return [
-                ChatMessage(
-                    id=row[0],
-                    conversation_id=row[1],
-                    login_id=row[2],
-                    property_id=row[3],
-                    role=row[4],
-                    message=row[5],
-                    module=row[6],
-                    created_at=row[7],
-                )
-                for row in rows
-            ]
-
-        except Exception:
-            logger.exception(
-                "Failed to retrieve chat history. "
-                "conversation_id=%s login_id=%s property_id=%s",
-                conversation_id,
-                login_id,
-                property_id,
-            )
-
-            raise
+            # Return messages in chronological order for the LLM.
+            return [_message(row) for row in reversed(rows)]
 
         finally:
-            if connection:
-                connection.close()
-
-    # ============================================================
-    # UPDATE SESSION CONTEXT
-    # ============================================================
+            conn.close()
 
     @staticmethod
     def update_session_context(
@@ -575,43 +357,23 @@ class ChatRepository:
         active_module: Optional[str] = None,
         conversation_summary: Optional[str] = None,
     ) -> Optional[ChatSession]:
-        """
-        Update the current context of an existing conversation.
-        """
-
-        connection = None
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE chat_sessions
-                    SET
-                        screen_module = COALESCE(%s, screen_module),
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE {SESSION_TABLE}
+                    SET screen_module = COALESCE(%s, screen_module),
                         selected_module = COALESCE(%s, selected_module),
                         active_module = COALESCE(%s, active_module),
                         conversation_summary = COALESCE(
-                            %s,
-                            conversation_summary
+                            %s, conversation_summary
                         ),
                         updated_at = CURRENT_TIMESTAMP
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
-                    RETURNING
-                        conversation_id,
-                        login_id,
-                        property_id,
-                        screen_module,
-                        selected_module,
-                        active_module,
-                        conversation_summary,
-                        created_at,
-                        updated_at,
-                        last_message_at,
-                        is_active
                     """,
                     (
                         screen_module,
@@ -624,48 +386,27 @@ class ChatRepository:
                     ),
                 )
 
-                row = cursor.fetchone()
+                cur.execute(
+                    f"""
+                    SELECT {SESSION_COLUMNS}
+                    FROM {SESSION_TABLE}
+                    WHERE conversation_id = %s
+                      AND login_id = %s
+                      AND property_id = %s
+                    """,
+                    (conversation_id, login_id, property_id),
+                )
+                row = cur.fetchone()
 
-            connection.commit()
-
-            if not row:
-                return None
-
-            return ChatSession(
-                conversation_id=row[0],
-                login_id=row[1],
-                property_id=row[2],
-                screen_module=row[3],
-                selected_module=row[4],
-                active_module=row[5],
-                conversation_summary=row[6],
-                created_at=row[7],
-                updated_at=row[8],
-                last_message_at=row[9],
-                is_active=row[10],
-            )
+            conn.commit()
+            return _session(row)
 
         except Exception:
-            if connection:
-                connection.rollback()
-
-            logger.exception(
-                "Failed to update chat session context. "
-                "conversation_id=%s login_id=%s property_id=%s",
-                conversation_id,
-                login_id,
-                property_id,
-            )
-
+            conn.rollback()
+            logger.exception("Failed to update chat session context")
             raise
-
         finally:
-            if connection:
-                connection.close()
-
-    # ============================================================
-    # CLOSE SESSION
-    # ============================================================
+            conn.close()
 
     @staticmethod
     def close_session(
@@ -673,61 +414,164 @@ class ChatRepository:
         login_id: int,
         property_id: int,
     ) -> bool:
-        """
-        Mark a conversation as inactive.
-        """
-
-        connection = None
+        conn = get_database_connection()
 
         try:
-            connection = get_database_connection()
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE chat_sessions
-                    SET
-                        is_active = FALSE,
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE {SESSION_TABLE}
+                    SET is_active = FALSE,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE conversation_id = %s
                       AND login_id = %s
                       AND property_id = %s
-                    RETURNING conversation_id
+                      AND is_active = TRUE
                     """,
-                    (
-                        conversation_id,
-                        login_id,
-                        property_id,
-                    ),
+                    (conversation_id, login_id, property_id),
                 )
+                changed = cur.rowcount > 0
 
-                row = cursor.fetchone()
-
-            connection.commit()
-
-            return row is not None
+            conn.commit()
+            return changed
 
         except Exception:
-            if connection:
-                connection.rollback()
-
-            logger.exception(
-                "Failed to close chat session. "
-                "conversation_id=%s login_id=%s property_id=%s",
-                conversation_id,
-                login_id,
-                property_id,
-            )
-
+            conn.rollback()
+            logger.exception("Failed to close chat session")
             raise
+        finally:
+            conn.close()
+
+    @staticmethod
+    def get_recent_sessions(
+        login_id: int,
+        property_id: int,
+        limit: int = 5,
+    ) -> List[dict]:
+        """Return the latest chat sessions for a user and property."""
+
+        limit = min(max(int(limit), 1), 5)
+        conn = get_database_connection()
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT
+                        s.conversation_id,
+                        s.screen_module,
+                        s.selected_module,
+                        s.active_module,
+                        s.created_at,
+                        s.updated_at,
+                        s.last_message_at,
+                        (
+                            SELECT m.message
+                            FROM {MESSAGE_TABLE} m
+                            WHERE m.conversation_id = s.conversation_id
+                              AND m.login_id = s.login_id
+                              AND m.property_id = s.property_id
+                              AND m.role = 'user'
+                            ORDER BY m.created_at ASC, m.id ASC
+                            LIMIT 1
+                        ) AS first_question
+                    FROM {SESSION_TABLE} s
+                    WHERE s.login_id = %s
+                      AND s.property_id = %s
+                      AND s.is_active = TRUE
+                    ORDER BY
+                        COALESCE(
+                            s.last_message_at,
+                            s.updated_at,
+                            s.created_at
+                        ) DESC,
+                        s.created_at DESC
+                    LIMIT %s
+                    """,
+                    (login_id, property_id, limit),
+                )
+
+                rows = cur.fetchall()
+
+            results = []
+
+            for row in rows:
+                (
+                    conversation_id,
+                    screen_module,
+                    selected_module,
+                    active_module,
+                    created_at,
+                    updated_at,
+                    last_message_at,
+                    first_question,
+                ) = row
+
+                if not isinstance(conversation_id, UUID):
+                    conversation_id = UUID(str(conversation_id))
+
+                # Use the first user question as the recent-chat title.
+                title = str(first_question or "New conversation").strip()
+                if len(title) > 60:
+                    title = title[:57] + "..."
+
+                results.append(
+                    {
+                        "conversation_id": str(conversation_id),
+                        "title": title,
+                        "screen_module": screen_module,
+                        "selected_module": selected_module,
+                        "active_module": active_module,
+                        "created_at": (
+                            created_at.isoformat()
+                            if created_at else None
+                        ),
+                        "updated_at": (
+                            updated_at.isoformat()
+                            if updated_at else None
+                        ),
+                        "last_message_at": (
+                            last_message_at.isoformat()
+                            if last_message_at else None
+                        ),
+                    }
+                )
+
+            return results
 
         finally:
-            if connection:
-                connection.close()
+            conn.close()
 
-    # ============================================================
-    # CONVERT HISTORY FOR LLM
-    # ============================================================
+    @staticmethod
+    def get_all_messages(
+        conversation_id: UUID,
+        login_id: int,
+        property_id: int,
+    ) -> List[ChatMessage]:
+        """Return all messages in a conversation, oldest first."""
+
+        conn = get_database_connection()
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT {MESSAGE_COLUMNS}
+                    FROM {MESSAGE_TABLE}
+                    WHERE conversation_id = %s
+                      AND login_id = %s
+                      AND property_id = %s
+                    ORDER BY created_at ASC, id ASC
+                    """,
+                    (conversation_id, login_id, property_id),
+                )
+
+                rows = cur.fetchall()
+
+            return [_message(row) for row in rows]
+
+        finally:
+            conn.close()
 
     @staticmethod
     def get_history_for_llm(
@@ -736,11 +580,6 @@ class ChatRepository:
         property_id: int,
         limit: int = 20,
     ) -> List[dict]:
-        """
-        Return recent messages in a simple structure suitable
-        for Gemini/LangChain/LangGraph context.
-        """
-
         messages = ChatRepository.get_recent_messages(
             conversation_id=conversation_id,
             login_id=login_id,
