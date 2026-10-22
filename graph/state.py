@@ -5,7 +5,6 @@ class ReportState(
     TypedDict,
     total=False
 ):
-
     # ============================================================
     # Common Login / Authentication
     # ============================================================
@@ -31,9 +30,7 @@ class ReportState(
     # ============================================================
 
     conversation_id: str
-
     conversation_history: List[Dict[str, Any]]
-
     conversation_summary: Optional[str]
 
     # ============================================================
@@ -48,7 +45,7 @@ class ReportState(
     rewritten_question: Optional[str]
 
     # Existing agents continue reading this field.
-    # It will contain rewritten_question when available,
+    # It contains rewritten_question when available,
     # otherwise the original question.
     question: str
 
@@ -73,8 +70,11 @@ class ReportState(
     # ============================================================
 
     routing_confidence: Optional[float]
-
     routing_reason: Optional[str]
+
+    # Type of user request identified by the router.
+    # Examples: report_query, conversation_history, unsupported.
+    intent_type: Optional[str]
 
     # ============================================================
     # Backward Compatibility

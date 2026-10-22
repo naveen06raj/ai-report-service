@@ -6,6 +6,7 @@ langfuse
 langchain
 langchain-core
 langchain-google-vertexai
-
+PyMySQL
 google-cloud-aiplatform
-psycopg2-binary
+langgraph
+sshtunnel
