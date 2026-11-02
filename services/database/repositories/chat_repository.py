@@ -600,3 +600,107 @@ class ChatRepository:
             }
             for message in messages
         ]
+
+    @staticmethod
+    def delete_chat_history(
+        login_id: int,
+        property_id: int,
+        conversation_id: Optional[UUID] = None,
+    ) -> dict:
+        """
+        Permanently delete one conversation or all conversations
+        for the specified user and property.
+
+        If conversation_id is provided, only that conversation and
+        its messages are deleted.
+
+        If conversation_id is None, all messages and sessions for
+        the specified login_id and property_id are deleted.
+
+        The database tables themselves are never dropped.
+        """
+        conn = get_database_connection()
+
+        try:
+            with conn.cursor() as cur:
+                if conversation_id is not None:
+                    # Confirm the conversation belongs to this user/property.
+                    cur.execute(
+                        f"""
+                        SELECT 1
+                        FROM {SESSION_TABLE}
+                        WHERE conversation_id = %s
+                          AND login_id = %s
+                          AND property_id = %s
+                        LIMIT 1
+                        """,
+                        (conversation_id, login_id, property_id),
+                    )
+
+                    if cur.fetchone() is None:
+                        raise ValueError(
+                            "Conversation not found for the specified "
+                            "user and property."
+                        )
+
+                    # Delete child records before the parent session.
+                    cur.execute(
+                        f"""
+                        DELETE FROM {MESSAGE_TABLE}
+                        WHERE conversation_id = %s
+                          AND login_id = %s
+                          AND property_id = %s
+                        """,
+                        (conversation_id, login_id, property_id),
+                    )
+                    deleted_messages = cur.rowcount
+
+                    cur.execute(
+                        f"""
+                        DELETE FROM {SESSION_TABLE}
+                        WHERE conversation_id = %s
+                          AND login_id = %s
+                          AND property_id = %s
+                        """,
+                        (conversation_id, login_id, property_id),
+                    )
+                    deleted_sessions = cur.rowcount
+
+                else:
+                    # Clear all messages for this user/property.
+                    cur.execute(
+                        f"""
+                        DELETE FROM {MESSAGE_TABLE}
+                        WHERE login_id = %s
+                          AND property_id = %s
+                        """,
+                        (login_id, property_id),
+                    )
+                    deleted_messages = cur.rowcount
+
+                    # Then clear all sessions for this user/property.
+                    cur.execute(
+                        f"""
+                        DELETE FROM {SESSION_TABLE}
+                        WHERE login_id = %s
+                          AND property_id = %s
+                        """,
+                        (login_id, property_id),
+                    )
+                    deleted_sessions = cur.rowcount
+
+            conn.commit()
+
+            return {
+                "deleted_messages": deleted_messages,
+                "deleted_sessions": deleted_sessions,
+            }
+
+        except Exception:
+            conn.rollback()
+            logger.exception("Failed to delete chat history")
+            raise
+
+        finally:
+            conn.close()
+

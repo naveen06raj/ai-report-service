@@ -254,6 +254,70 @@ async def get_chat_history(
 
 # ============================================================
 
+# ============================================================
+# DELETE /chat/history
+# Delete one conversation OR all conversations for a user/property
+# ============================================================
+
+@router.delete("/history")
+async def delete_chat_history(
+    login_id: int = Query(...),
+    property_id: int = Query(...),
+    conversation_id: Optional[str] = Query(None),
+    authorization: str = Header(None),
+):
+    """Delete one conversation when conversation_id is supplied;
+    otherwise delete all conversations for the login/property pair.
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization header missing",
+        )
+
+    parsed_conversation_id = parse_conversation_id(conversation_id)
+
+    try:
+        result = ChatRepository.delete_chat_history(
+            login_id=login_id,
+            property_id=property_id,
+            conversation_id=parsed_conversation_id,
+        )
+
+        is_single_delete = parsed_conversation_id is not None
+        return {
+            "status": True,
+            "message": (
+                "Conversation and its messages deleted successfully"
+                if is_single_delete
+                else "All conversations and messages deleted successfully"
+            ),
+            "login_id": login_id,
+            "property_id": property_id,
+            "conversation_id": (
+                str(parsed_conversation_id)
+                if parsed_conversation_id is not None
+                else None
+            ),
+            "deleted_sessions": result.get("deleted_sessions", 0),
+            "deleted_messages": result.get("deleted_messages", 0),
+        }
+
+    except ValueError as exc:
+        # The repository raises ValueError when the requested
+        # conversation does not belong to this login/property.
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Failed to delete chat history")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to delete chat history",
+        ) from exc
+
+
 # Supported Chatbot Modules
 
 # ============================================================
