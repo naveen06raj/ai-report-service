@@ -51,4 +51,4 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --service-account ai-report-service@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},LOCATION=asia-southeast1,GEMINI_MODEL=gemini-2.5-flash
+            --update-env-vars PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},LOCATION=asia-southeast1,GEMINI_MODEL=gemini-2.5-flash
