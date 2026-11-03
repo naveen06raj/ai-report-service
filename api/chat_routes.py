@@ -1,3 +1,4 @@
+import json
 import logging
 
 import re
@@ -65,6 +66,67 @@ from services.database.repositories.chat_repository import ChatRepository
 
 
 logger = logging.getLogger(__name__)
+
+
+def clean_llm_json_text(value):
+    """
+    Remove Markdown code fences and any text outside the first valid
+    JSON object/array. Return JSON as a plain string so the API response
+    structure remains unchanged.
+    """
+    if not isinstance(value, str):
+        return value
+
+    text = value.strip()
+    if not text:
+        return text
+
+    # Remove an opening Markdown fence such as ```json or ```.
+    text = re.sub(
+        r"^\s*```(?:\s*json)?\s*",
+        "",
+        text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove a closing fence. raw_decode also ignores trailing text.
+    text = re.sub(r"\s*```\s*$", "", text, count=1)
+
+    # Locate the first JSON object or array.
+    candidates = [pos for pos in (text.find("{"), text.find("[")) if pos >= 0]
+    if not candidates:
+        return text.strip()
+
+    start = min(candidates)
+
+    try:
+        parsed, _ = json.JSONDecoder().raw_decode(text[start:])
+        return json.dumps(parsed, ensure_ascii=False)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        logger.warning("Could not extract valid JSON from chatbot response")
+        return text.strip()
+
+
+def clean_chat_graph_response(response):
+    """
+    Clean structured JSON in the graph response without changing the
+    outer API response fields or the answer's JSON schema.
+    """
+    if isinstance(response, str):
+        return clean_llm_json_text(response)
+
+    if isinstance(response, dict):
+        cleaned_response = response.copy()
+        answer = cleaned_response.get("answer")
+
+        if isinstance(answer, str):
+            cleaned_response["answer"] = clean_llm_json_text(answer)
+
+        return cleaned_response
+
+    return response
+
 
 
 
@@ -2446,7 +2508,9 @@ async def ask_ai(
                     intent_type=intent_type,
                 )
 
-
+                # Remove Markdown fences and trailing text before
+                # logging, saving to chat history, and returning.
+                response = clean_chat_graph_response(response)
 
                 print(
 
