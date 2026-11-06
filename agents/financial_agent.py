@@ -1,4 +1,7 @@
 import re
+import json
+import ast
+import copy
 
 from datetime import date, datetime, timedelta
 
@@ -898,117 +901,6 @@ def extract_date_range(question):
 
 
 
-DEFAULT_FINANCIAL_PAGE_SIZE = 5
-MAX_FINANCIAL_PAGE_SIZE = 50
-
-
-def _history_role_and_text(item):
-    if not isinstance(item, dict):
-        return "", ""
-    role = str(item.get("role") or item.get("type") or "").strip().lower()
-    content = item.get("content") or item.get("message") or item.get("text") or item.get("answer") or ""
-    if isinstance(content, list):
-        content = " ".join(
-            str(part.get("text") or part.get("content") or "")
-            if isinstance(part, dict) else str(part)
-            for part in content
-        )
-    return role, str(content)
-
-
-def _requested_financial_page_size(question):
-    match = re.search(r"\b(?:next\s+)?(\d{1,2})\s+(?:records?|invoices?|items?)\b", str(question or ""), re.I)
-    if match:
-        return max(1, min(int(match.group(1)), MAX_FINANCIAL_PAGE_SIZE))
-    return DEFAULT_FINANCIAL_PAGE_SIZE
-
-
-def _is_next_financial_page(question):
-    q = str(question or "").lower()
-    return bool(re.search(r"\b(next|more|another)\b", q) and
-                re.search(r"\b(records?|invoices?|items?|ones?)\b", q))
-
-
-def _is_financial_list_request(question):
-    q = str(question or "").lower()
-    if _is_next_financial_page(q):
-        return True
-    return bool(re.search(r"\b(show|list|display|get|fetch|view)\b", q) and
-                re.search(r"\b(invoices?|bills?|financial records?)\b", q))
-
-
-def _previous_financial_page(conversation_history):
-    pattern = re.compile(
-        r"Showing\s+financial\s+(?:records|invoices)\s+(\d+)\s*[-–]\s*(\d+)\s+of\s+(\d+)",
-        re.I,
-    )
-    for item in reversed(conversation_history or []):
-        role, content = _history_role_and_text(item)
-        if role in {"assistant", "ai", "bot"}:
-            match = pattern.search(content)
-            if match:
-                return int(match.group(1)), int(match.group(2)), int(match.group(3))
-    return 0, 0, 0
-
-
-def _extract_financial_invoice_list(report_data):
-    invoices_data = report_data.get("invoices", {})
-    if isinstance(invoices_data, dict):
-        data = invoices_data.get("data", {})
-        if isinstance(data, dict):
-            invoices = data.get("invoices", [])
-            if isinstance(invoices, list):
-                return invoices
-        elif isinstance(data, list):
-            return data
-    elif isinstance(invoices_data, list):
-        return invoices_data
-    return []
-
-
-def _format_financial_invoice(invoice, index):
-    if not isinstance(invoice, dict):
-        return f"{index}. {invoice}"
-    fields = [
-        ("Invoice No", ("invoice_no", "invoice_number", "number")),
-        ("Date", ("invoice_date", "date", "created_at")),
-        ("Amount", ("total_amount", "amount", "invoice_amount", "grand_total")),
-        ("Status", ("status", "invoice_status", "payment_status")),
-    ]
-    parts = []
-    for label, keys in fields:
-        value = next((invoice.get(key) for key in keys if invoice.get(key) not in (None, "")), None)
-        if value is not None:
-            parts.append(f"{label}: {value}")
-    if not parts:
-        parts = [f"{key}: {value}" for key, value in invoice.items()
-                 if not isinstance(value, (dict, list)) and value not in (None, "")]
-        parts = parts[:6]
-    return f"{index}. " + (" | ".join(parts) if parts else "Invoice details unavailable")
-
-
-def _deterministic_financial_invoice_answer(invoices, question, conversation_history):
-    if not invoices:
-        return None
-    page_size = _requested_financial_page_size(question)
-    previous_start, previous_end, previous_total = _previous_financial_page(conversation_history)
-    if _is_next_financial_page(question):
-        start = previous_end if previous_end else 0
-    else:
-        start = 0
-    end = min(start + page_size, len(invoices))
-    if start >= len(invoices):
-        return "There are no more financial records to display."
-    lines = ["Here are the financial invoice records:"]
-    lines.extend(_format_financial_invoice(row, i + 1) for i, row in enumerate(invoices[start:end], start=start))
-    lines.append(f"\nShowing financial invoices {start + 1}-{end} of {len(invoices)}.")
-    if end < len(invoices):
-        lines.append("\nYou can also ask:\n- Show me the next 5 records")
-    return "\n".join(lines)
-
-
-
-
 
 DEFAULT_FINANCIAL_PAGE_SIZE = 5
 MAX_FINANCIAL_PAGE_SIZE = 50
@@ -1018,18 +910,27 @@ def _history_role_and_text(item):
     if not isinstance(item, dict):
         return "", ""
     role = str(item.get("role") or item.get("type") or "").strip().lower()
-    content = item.get("content") or item.get("message") or item.get("text") or item.get("answer") or ""
+    content = (
+        item.get("content") or item.get("message") or item.get("text")
+        or item.get("answer") or ""
+    )
     if isinstance(content, list):
         content = " ".join(
             str(part.get("text") or part.get("content") or "")
             if isinstance(part, dict) else str(part)
             for part in content
         )
+    # Structured assistant messages may store the answer as a dictionary.
+    if isinstance(content, dict):
+        content = content.get("text", content)
     return role, str(content)
 
 
 def _requested_financial_page_size(question):
-    match = re.search(r"\b(?:next\s+)?(\d{1,2})\s+(?:records?|invoices?|items?)\b", str(question or ""), re.I)
+    match = re.search(
+        r"\b(?:next\s+)?(\d{1,2})\s+(?:records?|invoices?|items?)\b",
+        str(question or ""), re.I
+    )
     if match:
         return max(1, min(int(match.group(1)), MAX_FINANCIAL_PAGE_SIZE))
     return DEFAULT_FINANCIAL_PAGE_SIZE
@@ -1037,21 +938,26 @@ def _requested_financial_page_size(question):
 
 def _is_next_financial_page(question):
     q = str(question or "").lower()
-    return bool(re.search(r"\b(next|more|another)\b", q) and
-                re.search(r"\b(records?|invoices?|items?|ones?)\b", q))
+    return bool(
+        re.search(r"\b(next|more|another|remaining|continue)\b", q)
+        and re.search(r"\b(records?|invoices?|items?|ones?)\b", q)
+    )
 
 
 def _is_financial_list_request(question):
     q = str(question or "").lower()
     if _is_next_financial_page(q):
         return True
-    return bool(re.search(r"\b(show|list|display|get|fetch|view)\b", q) and
-                re.search(r"\b(invoices?|bills?|financial records?)\b", q))
+    return bool(
+        re.search(r"\b(show|list|display|get|fetch|view)\b", q)
+        and re.search(r"\b(invoices?|bills?|financial records?)\b", q)
+    )
 
 
 def _previous_financial_page(conversation_history):
     pattern = re.compile(
-        r"Showing\s+financial\s+(?:records|invoices)\s+(\d+)\s*[-–]\s*(\d+)\s+of\s+(\d+)",
+        r"Showing\s+financial\s+(?:records|invoices)\s+"
+        r"(\d+)\s*[-–]\s*(\d+)\s+of\s+(\d+)",
         re.I,
     )
     for item in reversed(conversation_history or []):
@@ -1059,64 +965,231 @@ def _previous_financial_page(conversation_history):
         if role in {"assistant", "ai", "bot"}:
             match = pattern.search(content)
             if match:
-                return int(match.group(1)), int(match.group(2)), int(match.group(3))
+                return tuple(int(value) for value in match.groups())
     return 0, 0, 0
 
 
 def _extract_financial_invoice_list(report_data):
+    if not isinstance(report_data, dict):
+        return []
     invoices_data = report_data.get("invoices", {})
     if isinstance(invoices_data, dict):
         data = invoices_data.get("data", {})
         if isinstance(data, dict):
             invoices = data.get("invoices", [])
-            if isinstance(invoices, list):
-                return invoices
-        elif isinstance(data, list):
+            return invoices if isinstance(invoices, list) else []
+        if isinstance(data, list):
             return data
     elif isinstance(invoices_data, list):
         return invoices_data
     return []
 
 
-def _format_financial_invoice(invoice, index):
-    if not isinstance(invoice, dict):
-        return f"{index}. {invoice}"
-    fields = [
-        ("Invoice No", ("invoice_no", "invoice_number", "number")),
-        ("Date", ("invoice_date", "date", "created_at")),
-        ("Amount", ("total_amount", "amount", "invoice_amount", "grand_total")),
-        ("Status", ("status", "invoice_status", "payment_status")),
-    ]
-    parts = []
-    for label, keys in fields:
-        value = next((invoice.get(key) for key in keys if invoice.get(key) not in (None, "")), None)
-        if value is not None:
-            parts.append(f"{label}: {value}")
-    if not parts:
-        parts = [f"{key}: {value}" for key, value in invoice.items()
-                 if not isinstance(value, (dict, list)) and value not in (None, "")]
-        parts = parts[:6]
-    return f"{index}. " + (" | ".join(parts) if parts else "Invoice details unavailable")
+def _replace_financial_invoice_list(report_data, invoices):
+    """Replace the invoice array while preserving the API response structure."""
+    result = copy.deepcopy(report_data)
+    invoices_data = result.get("invoices", {})
+    if isinstance(invoices_data, dict):
+        data = invoices_data.get("data", {})
+        if isinstance(data, dict):
+            data["invoices"] = invoices
+            invoices_data["data"] = data
+        elif isinstance(data, list):
+            invoices_data["data"] = invoices
+        result["invoices"] = invoices_data
+    elif isinstance(invoices_data, list):
+        result["invoices"] = invoices
+    return result
 
 
-def _deterministic_financial_invoice_answer(invoices, question, conversation_history):
-    if not invoices:
-        return None
+def _prepare_financial_page(report_data, question, conversation_history):
+    """
+    Select the requested invoice page before sending report data to Gemini.
+    Returns (prompt_data, pagination_footer, is_list_request).
+    """
+    if not _is_financial_list_request(question):
+        return report_data, None, False
+
+    all_invoices = _extract_financial_invoice_list(report_data)
+    previous_start, previous_end, previous_total = _previous_financial_page(
+        conversation_history
+    )
     page_size = _requested_financial_page_size(question)
-    previous_start, previous_end, previous_total = _previous_financial_page(conversation_history)
-    if _is_next_financial_page(question):
-        start = previous_end if previous_end else 0
+    is_next = _is_next_financial_page(question)
+
+    # Continue only when the prior assistant response has a valid page marker.
+    start = previous_end if is_next and previous_total else 0
+    total = len(all_invoices)
+    start = min(start, total)
+    end = min(start + page_size, total)
+    page_invoices = all_invoices[start:end]
+
+    prompt_data = _replace_financial_invoice_list(report_data, page_invoices)
+    prompt_data["pagination"] = {
+        "start": start,
+        "end": end,
+        "total": total,
+        "page_size": page_size,
+        "has_next": end < total,
+        "remaining": max(0, total - end),
+    }
+
+    if not total:
+        footer = "No financial invoice records were found."
+    elif start >= total:
+        footer = f"No more financial invoices. Total: {total}."
     else:
-        start = 0
-    end = min(start + page_size, len(invoices))
-    if start >= len(invoices):
-        return "There are no more financial records to display."
-    lines = ["Here are the financial invoice records:"]
-    lines.extend(_format_financial_invoice(row, i + 1) for i, row in enumerate(invoices[start:end], start=start))
-    lines.append(f"\nShowing financial invoices {start + 1}-{end} of {len(invoices)}.")
-    if end < len(invoices):
-        lines.append("\nYou can also ask:\n- Show me the next 5 records")
-    return "\n".join(lines)
+        footer = f"Showing financial invoices {start + 1}-{end} of {total}."
+
+    return prompt_data, footer, True
+
+
+def _parse_financial_response(raw_response):
+    """
+    Parse Gemini's response into one structured answer object.
+
+    Handles:
+    - Valid JSON returned as a string.
+    - Python-dictionary-style output as a defensive fallback.
+    - A structured response accidentally serialized inside content.text.
+    - Plain-text fallback when the model does not return structured data.
+    """
+
+    def parse_object(value):
+        if isinstance(value, dict):
+            return value
+
+        if not isinstance(value, str):
+            return None
+
+        text = value.strip()
+        if not text:
+            return None
+
+        # Remove optional Markdown JSON fences.
+        text = re.sub(
+            r"^\s*```(?:json)?\s*|\s*```\s*$",
+            "",
+            text,
+            flags=re.IGNORECASE
+        ).strip()
+
+        try:
+            parsed_value = json.loads(text)
+            return parsed_value if isinstance(parsed_value, dict) else None
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # Defensive fallback for Python dict representations using single quotes.
+        try:
+            parsed_value = ast.literal_eval(text)
+            return parsed_value if isinstance(parsed_value, dict) else None
+        except (ValueError, SyntaxError):
+            return None
+
+    parsed = parse_object(raw_response)
+
+    # If the model response itself was wrapped as text by another layer,
+    # unwrap the structured object from content.text.
+    for _ in range(3):
+        if not isinstance(parsed, dict):
+            break
+
+        content_value = parsed.get("content")
+        if not isinstance(content_value, dict):
+            break
+
+        nested_text = content_value.get("text")
+        nested_parsed = parse_object(nested_text)
+
+        if (
+            isinstance(nested_parsed, dict)
+            and isinstance(nested_parsed.get("content"), dict)
+        ):
+            parsed = nested_parsed
+            continue
+
+        break
+
+    if not isinstance(parsed, dict):
+        raw_text = (
+            raw_response
+            if isinstance(raw_response, str)
+            else str(raw_response or "")
+        )
+        text = LLMResponseParser().parse_text(raw_text)
+
+        return {
+            "type": "answer",
+            "format": "structured",
+            "content": {
+                "text": str(text or "").strip(),
+                "sections": [],
+                "tables": [],
+                "charts": []
+            },
+            "follow_up_questions": []
+        }
+
+    content = parsed.get("content")
+    if not isinstance(content, dict):
+        content = {
+            "text": str(parsed.get("answer") or parsed.get("text") or "")
+        }
+
+    answer_text = content.get("text", "")
+    if not isinstance(answer_text, str):
+        answer_text = str(answer_text)
+
+    followups = parsed.get("follow_up_questions", [])
+    if not isinstance(followups, list):
+        followups = []
+
+    followups = [
+        str(item).strip()
+        for item in followups
+        if isinstance(item, (str, int, float)) and str(item).strip()
+    ][:5]
+
+    return {
+        "type": "answer",
+        "format": "structured",
+        "content": {
+            "text": answer_text.strip(),
+            "sections": (
+                content.get("sections")
+                if isinstance(content.get("sections"), list)
+                else []
+            ),
+            "tables": (
+                content.get("tables")
+                if isinstance(content.get("tables"), list)
+                else []
+            ),
+            "charts": (
+                content.get("charts")
+                if isinstance(content.get("charts"), list)
+                else []
+            )
+        },
+        "follow_up_questions": followups
+    }
+
+
+def _remove_invalid_next_page_suggestions(answer, has_next):
+    if has_next:
+        return answer
+    if not isinstance(answer, dict):
+        return answer
+    followups = answer.get("follow_up_questions", [])
+    answer["follow_up_questions"] = [
+        item for item in followups
+        if not re.search(
+            r"\b(next|more|remaining)\b.*\b(records?|invoices?|items?)\b",
+            str(item), re.I
+        )
+    ]
+    return answer
 
 
 
@@ -1337,17 +1410,14 @@ def financial_node(
 
         }
 
-        # Deterministic invoice listing and pagination for list/follow-up requests.
-        if _is_financial_list_request(question):
-            invoice_rows = _extract_financial_invoice_list(report_data)
-            list_answer = _deterministic_financial_invoice_answer(
-                invoice_rows,
-                question,
-                conversation_history,
+        # Select the invoice page on the backend, then let Gemini explain it.
+        analytics_for_prompt, pagination_footer, is_list_request = (
+            _prepare_financial_page(
+                report_data=report_data,
+                question=question,
+                conversation_history=conversation_history,
             )
-            if list_answer is not None:
-                state["answer"] = list_answer
-                return state
+        )
 
 
 
@@ -1574,7 +1644,7 @@ def financial_node(
 
             .build_financial_chat_prompt(
 
-                report_data,
+                analytics_for_prompt,
 
                 question
 
@@ -1625,40 +1695,35 @@ def financial_node(
 
 
         # ====================================================
-
-        # Parse Response as Plain Text
-
+        # Parse Structured JSON Response
         # ====================================================
 
+        answer = _parse_financial_response(response)
 
-
-        answer = (
-
-            LLMResponseParser()
-
-            .parse_text(
-
-                response
-
+        # Keep pagination footer deterministic and sourced from backend data.
+        if pagination_footer and is_list_request:
+            answer["content"]["text"] = (
+                answer["content"]["text"].rstrip()
+                + ("\n\n" if answer["content"]["text"].strip() else "")
+                + pagination_footer
             )
 
-        )
-
-
+            # Do not offer another page when the backend confirms there are none.
+            has_next = bool(analytics_for_prompt.get("pagination", {}).get("has_next"))
+            answer = _remove_invalid_next_page_suggestions(answer, has_next)
 
         print("=" * 80)
-
         print("FINANCIAL ANSWER")
-
+        print("=" * 80)
+        print(json.dumps(answer, ensure_ascii=False, indent=2))
         print("=" * 80)
 
-        print(answer)
-
-        print("=" * 80)
-
-
-
-        state["answer"] = answer
+        # Keep the structured response JSON-encoded as a string.
+        # report_graph.py converts state["answer"] to str(); returning a
+        # dictionary here would turn it into a Python dict representation
+        # and nest it inside content.text. The API response normalizer can
+        # decode this JSON string and restore the structured answer.
+        state["answer"] = json.dumps(answer, ensure_ascii=False)
 
 
 
